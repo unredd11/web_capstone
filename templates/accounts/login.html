@@ -1,0 +1,88 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Sign In — DPWH VERIFY</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/login.css' %}">
+</head>
+<body>
+
+    <div class="login-container">
+        <div class="login-form-side">
+            <div>
+                <div class="brand-header">
+                    <div class="brand-logo">
+                        <img src="{% static 'images/dpwh-logo.png' %}" alt="DPWH Logo">
+                    </div>
+                    <div class="brand-text">
+                        <h5>DPWH</h5>
+                        <span>Admin Portal</span>
+                    </div>
+                </div>
+
+                <h1 class="form-title"></h1>
+                <p class="form-subtitle">
+                    Welcome to the Blockchain-Integrated Image Authentication System. Sign in as an administrator to supervise projects and manage inspector accounts.
+                </p>
+
+                {% if messages %}
+                <div class="mb-4">
+                    {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show border-0 shadow-sm" role="alert">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>{{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                <form method="POST" action="{% url 'accounts:login' %}">
+                    {% csrf_token %}
+                    <div class="mb-4">
+                        <label class="custom-label" for="username">Email or Username</label>
+                        <input type="text" id="username" name="username" class="form-control custom-input" placeholder="admin@gmail.com" required autofocus>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="custom-label" for="password"> Password</label>
+                        <input type="password" id="password" name="password" class="form-control custom-input" placeholder="••••••••••••••••" required>
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="agreeTerms" required checked>
+                            <label class="form-check-label text-muted small" for="agreeTerms">
+                                I agree to the DPWH security & system audit protocols
+                            </label>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-signin">
+                        </i>Sign In
+                    </button>
+                </form>
+
+                <div class="mt-4 pt-2 text-muted small">
+                    Need technical help? <a href="#" class="text-primary text-decoration-none fw-semibold">Contact the IT department</a>
+                </div>
+            </div>
+
+            <div class="security-badge">
+                <span>
+                    <strong>Restricted Privilege:</strong> By institutional policy, only authorized DPWH Administrators hold access rights to create, audit, and manage Field Inspector credentials.
+                </span>
+            </div>
+        </div>
+
+        <div class="login-illustration-side d-none d-md-block" style="background-image: url('{% static "images/DPWH-login-logo.png" %}'); background-size: cover; background-position: center;">
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard Overview{% endblock %}
+{% block breadcrumb %}Overview{% endblock %}
+{% block page_title %}City Infrastructure Overview{% endblock %}
+
+{% block content %}
+
+<div class="row g-4 mb-4">
+    <div class="col-xl-3 col-md-6">
+        <div class="stat-card">
+            <div class="stat-label">Active Projects</div>
+            <div class="stat-value">47</div>
+            <div class="stat-trend up">
+                <i class="bi bi-arrow-up"></i> 12% this month
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="stat-card">
+            <div class="stat-label">Registered Inspectors</div>
+            <div class="stat-value">12</div>
+            <div class="stat-trend up">
+                <i class="bi bi-arrow-up"></i> 2 new this week
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="stat-card">
+            <div class="stat-label">Pending Reports</div>
+            <div class="stat-value">8</div>
+            <div class="stat-trend down">
+                <i class="bi bi-arrow-down"></i> 3 overdue
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="stat-card">
+            <div class="stat-label">Blockchain Verified</div>
+            <div class="stat-value">1,247</div>
+            <div class="stat-trend up">
+                <i class="bi bi-arrow-up"></i> 86% pass rate
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

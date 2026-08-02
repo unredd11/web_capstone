@@ -1,0 +1,198 @@
+/* ==========================================================================
+   DPWH VERIFY — Admin Login Stylesheet
+   ========================================================================== */
+
+* {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+body, html {
+    height: 100%;
+    margin: 0;
+    background-color: #ffffff;
+    overflow-x: hidden;
+}
+
+.login-container {
+    min-height: 100vh;
+    display: flex;
+}
+
+/* ── Left Side: Login Form ── */
+.login-form-side {
+    width: 100%;
+    max-width: 520px;
+    background: #ffffff;
+    padding: 50px 60px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    z-index: 10;
+    box-shadow: 10px 0 30px rgba(0, 0, 0, 0.03);
+}
+
+@media (max-width: 768px) {
+    .login-form-side {
+        max-width: 100%;
+        padding: 40px 30px;
+    }
+}
+
+/* ── Right Side: DPWH Login Picture ── */
+.login-illustration-side {
+    flex: 1;
+    background-color: #f0f4f8;
+    background-image: url("../images/DPWH-login-logo.png");
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.illustration-overlay {
+    position: absolute;
+    bottom: 40px;
+    left: 40px;
+    right: 40px;
+    background: rgba(255, 255, 255, 0.88);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    padding: 24px 30px;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.08);
+    max-width: 580px;
+}
+
+/* ── Branding Header ── */
+.brand-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 35px;
+}
+
+.brand-logo {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    background: var(--dpwh-orange);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px;
+    box-shadow: 0 4px 12px rgba(0, 34, 68, 0.2);
+}
+
+.brand-logo img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+.brand-text h5 {
+    margin: 0;
+    font-weight: 800;
+    color: #002244;
+    letter-spacing: 0.5px;
+    font-size: 18px;
+}
+
+.brand-text span {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #f26f21;
+    letter-spacing: 1.5px;
+}
+
+/* ── Form Elements ── */
+.form-title {
+    font-size: 28px;
+    font-weight: 800;
+    color: #111827;
+    margin-bottom: 10px;
+    letter-spacing: -0.5px;
+}
+
+.form-subtitle {
+    font-size: 14px;
+    color: #6b7280;
+    margin-bottom: 35px;
+    line-height: 1.6;
+}
+
+.custom-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 8px;
+}
+
+.custom-input {
+    border: 1.5px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 14px 18px;
+    font-size: 15px;
+    color: #1f2937;
+    transition: all 0.2s ease;
+    background-color: #f9fafb;
+}
+
+.custom-input:focus {
+    background-color: #ffffff;
+    border-color: #0066cc;
+    box-shadow: 0 0 0 4px rgba(0, 102, 204, 0.1);
+    outline: none;
+}
+
+.btn-signin {
+    background: #f26f21;
+    border: none;
+    border-radius: 10px;
+    padding: 15px;
+    font-size: 15px;
+    font-weight: 700;
+    color: #ffffff;
+    width: 100%;
+    transition: all 0.2s ease;
+    box-shadow: 0 6px 20px rgba(0, 102, 204, 0.25);
+    margin-top: 10px;
+}
+
+.btn-signin:hover {
+    background: linear-gradient(#F26F21 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 102, 204, 0.35);
+    color: #fff;
+}
+
+.btn-signin:active {
+    transform: translateY(0);
+}
+
+.form-check-input:checked {
+    background-color: #0066cc;
+    border-color: #0066cc;
+}
+
+/* ── Security Footer Notice ── */
+.security-badge {
+    margin-top: auto;
+    padding-top: 40px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 12px;
+    color: #6b7280;
+    border-top: 1px solid #f3f4f6;
+}
+
+.security-badge i {
+    font-size: 18px;
+    color: #0066cc;
+}

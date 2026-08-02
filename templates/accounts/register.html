@@ -1,0 +1,96 @@
+{% extends 'base.html' %}
+
+{% block title %}Register Inspector{% endblock %}
+{% block breadcrumb %}Personnel{% endblock %}
+{% block page_title %}Register New Inspector{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8">
+        <div class="dash-card">
+            <div class="card-header-custom">
+                <h6>Inspector Registration Form</h6>
+            </div>
+            <div class="card-body-custom">
+                {% if form.errors %}
+                <div class="alert alert-danger">
+                    <strong>Please correct the errors below:</strong>
+                    <ul class="mb-0 mt-2">
+                    {% for field, errors in form.errors.items %}
+                        {% for error in errors %}
+                        <li>{{ error }}</li>
+                        {% endfor %}
+                    {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+
+                <form method="POST">
+                    {% csrf_token %}
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">First Name</label>
+                            {{ form.first_name }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Last Name</label>
+                            {{ form.last_name }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Email Address</label>
+                            {{ form.email }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Employee ID</label>
+                            {{ form.employee_id }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Phone Number</label>
+                            {{ form.phone }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">District Assignment</label>
+                            {{ form.district }}
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">Position / Title</label>
+                            {{ form.position }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Password</label>
+                            {{ form.password }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Confirm Password</label>
+                            {{ form.confirm_password }}
+                        </div>
+                        <div class="col-12 mt-4">
+                            <button type="submit" class="btn btn-primary px-4 py-2">
+                                <i class="bi bi-check-circle me-2"></i>Register Inspector
+                            </button>
+                            <a href="{% url 'accounts:inspector_list' %}" class="btn btn-outline-secondary ms-2 px-4 py-2">
+                                Cancel
+                            </a>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="dash-card">
+            <div class="card-header-custom">
+                <h6>Registration Notes</h6>
+            </div>
+            <div class="card-body-custom">
+                <ul style="font-size: 13px; color: var(--text-muted); padding-left: 18px;">
+                    <li class="mb-2">Inspector accounts are linked to the mobile verification app.</li>
+                    <li class="mb-2">Employee IDs must follow DPWH format (e.g., DPWH-2025-001).</li>
+                    <li class="mb-2">Password must be at least 8 characters.</li>
+                    <li>Inspectors can be deactivated but not deleted for audit trail integrity.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

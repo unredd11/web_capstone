@@ -1,0 +1,114 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+{% block breadcrumb %}Projects{% endblock %}
+{% block page_title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-10">
+        <div class="dash-card">
+            <div class="card-header-custom">
+                <h6></i>{{ title }}</h6>
+            </div>
+            <div class="card-body-custom">
+                {% if form.errors %}
+                <div class="alert alert-danger">
+                    <strong>Please correct the errors below:</strong>
+                    <ul class="mb-0">
+                    {% for field, errors in form.errors.items %}
+                        {% for error in errors %}
+                        <li>{{ field|title }}: {{ error }}</li>
+                        {% endfor %}
+                    {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+
+                <form method="POST">
+                    {% csrf_token %}
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <h6 class="text-primary fw-bold mb-0 mt-1"></i>1. Project Information & Contractor</h6>
+                            <hr class="mt-2 mb-3">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">Project Name</label>
+                            {{ form.project_name }}
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">Scope of Work / Description</label>
+                            {{ form.description }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">District Jurisdiction</label>
+                            {{ form.district }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Assigned Contractor Company</label>
+                            {{ form.contractor }}
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">Physical Site Address / Landmark</label>
+                            {{ form.location_address }}
+                        </div>
+
+                        <div class="col-12 mt-4">
+                            <h6 class="text-primary fw-bold mb-0 mt-2"></i>2. Geospatial Geofence Parameters (For Mobile Authentication)</h6>
+                            <hr class="mt-2 mb-3">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">GPS Latitude</label>
+                            {{ form.latitude }}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">GPS Longitude</label>
+                            {{ form.longitude }}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Geofence Radius (Meters)</label>
+                            {{ form.geofence_radius }}
+                        </div>
+
+                        <div class="col-12 mt-4">
+                            <h6 class="text-primary fw-bold mb-0 mt-2"></i>3. Inspector Assignment & Timeline</h6>
+                            <hr class="mt-2 mb-3">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Assign Field Inspector</label>
+                            {{ form.assigned_inspector }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Allocated Budget (₱)</label>
+                            {{ form.budget }}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Scheduled Start Date</label>
+                            {{ form.start_date }}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Scheduled End Date</label>
+                            {{ form.end_date }}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Current Progress (%)</label>
+                            {{ form.progress_percentage }}
+                        </div>
+                        <div class="col-md-6 mt-3">
+                            <label class="form-label fw-semibold">Project Status</label>
+                            {{ form.status }}
+                        </div>
+
+                        <div class="col-12 mt-4 pt-3 border-top">
+                            <button type="submit" class="btn btn-primary px-4 py-2 fw-semibold">
+                                <i class="bi bi-check-circle-fill me-2"></i>Save Infrastructure Project
+                            </button>
+                            <a href="{% url 'projects:project_list' %}" class="btn btn-outline-secondary ms-2 px-4 py-2">Cancel</a>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

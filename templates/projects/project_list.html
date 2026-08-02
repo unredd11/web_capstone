@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+
+{% block title %}All Projects{% endblock %}
+{% block breadcrumb %}Projects{% endblock %}
+{% block page_title %}Infrastructure Projects{% endblock %}
+
+{% block content %}
+<div class="dash-card">
+    <div class="card-header-custom">
+        <h6>All Projects</h6>
+        <a href="{% url 'projects:project_add' %}" class="btn btn-primary btn-sm">
+            <i class="bi bi-plus-lg me-1"></i> Add Project
+        </a>
+    </div>
+    <div class="card-body-custom p-0">
+        <div class="table-responsive">
+            <table class="table-custom">
+                <thead>
+                    <tr>
+                        <th>Project Name & Geofence</th>
+                        <th>District</th>
+                        <th>Contractor Company</th>
+                        <th>Assigned Inspector</th>
+                        <th>Progress</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for project in projects %}
+                    <tr>
+                        <td>
+                            <strong>{{ project.project_name }}</strong>
+                            {% if project.latitude and project.longitude %}
+                            <br><small class="text-muted"><i class="bi bi-geo-alt me-1"></i>{{ project.latitude }}, {{ project.longitude }} ({{ project.geofence_radius }}m)</small>
+                            {% endif %}
+                        </td>
+                        <td>{{ project.district }}</td>
+                        <td>{{ project.contractor|default:"<span class='text-muted'>—</span>"|safe }}</td>
+                        <td>
+                            {% if project.assigned_inspector %}
+                                <span class="badge bg-light text-dark border py-2 px-2"><i class="bi bi-person-badge me-1 text-primary"></i>{{ project.assigned_inspector.user.get_full_name|default:project.assigned_inspector.user.username }}</span>
+                            {% else %}
+                                <span class="text-muted fst-italic">Unassigned</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="progress me-2" style="height: 6px; width: 50px; background-color: #e9ecef;">
+                                    <div class="progress-bar bg-success" role="progressbar" style="width: {{ project.progress_percentage|stringformat:'s' }}%;"></div>
+                                </div>
+                                <span class="small fw-semibold">{{ project.progress_percentage }}%</span>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="status-badge badge-{{ project.status|lower }}">{{ project.status }}</span>
+                        </td>
+                        <td>
+                            <a href="{% url 'projects:project_edit' project.pk %}" class="btn btn-sm btn-outline-primary me-1" title="Edit Project & Geofence">
+                                <i class="bi bi-pencil-square"></i>
+                            </a>
+                            <a href="{% url 'projects:assign_inspector' project.pk %}" class="btn btn-sm btn-outline-success" title="Re-assign Inspector">
+                                <i class="bi bi-person-plus-fill"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center py-4 text-muted">
+                            <i class="bi bi-inbox" style="font-size: 32px;"></i>
+                            <p class="mt-2 mb-0">No projects yet. <a href="{% url 'projects:project_add' %}">Add your first project</a>.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

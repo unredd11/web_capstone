@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+
+{% block title %}Inspector Records{% endblock %}
+{% block breadcrumb %}Personnel{% endblock %}
+{% block page_title %}Inspector Records{% endblock %}
+
+{% block content %}
+<div class="dash-card">
+    <div class="card-header-custom">
+        <h6>All Registered Inspectors</h6>
+        <a href="{% url 'accounts:register' %}" class="btn btn-primary btn-sm">
+            <i class="bi bi-plus-lg me-1"></i> Add Inspector
+        </a>
+    </div>
+    <div class="card-body-custom p-0">
+        <div class="table-responsive">
+            <table class="table-custom">
+                <thead>
+                    <tr>
+                        <th>Employee ID</th>
+                        <th>Full Name</th>
+                        <th>Email</th>
+                        <th>District</th>
+                        <th>Position</th>
+                        <th>Status</th>
+                        <th>Registered</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for inspector in inspectors %}
+                    <tr>
+                        <td><strong>{{ inspector.employee_id }}</strong></td>
+                        <td>{{ inspector.user.get_full_name }}</td>
+                        <td>{{ inspector.user.email }}</td>
+                        <td>{{ inspector.district }}</td>
+                        <td>{{ inspector.position }}</td>
+                        <td>
+                            {% if inspector.is_active %}
+                            <span class="status-badge badge-completed">Active</span>
+                            {% else %}
+                            <span class="status-badge badge-suspended">Inactive</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ inspector.date_registered|date:"M d, Y" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center py-4 text-muted">
+                            <i class="bi bi-inbox" style="font-size: 32px;"></i>
+                            <p class="mt-2 mb-0">No inspectors registered yet.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
