@@ -1,0 +1,108 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="960" viewBox="0 0 1440 960">
+  <defs>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#172554" flood-opacity="0.10"/>
+    </filter>
+    <style>
+      .title { font: 700 24px Arial, sans-serif; fill: #172554; }
+      .subtitle { font: 400 13px Arial, sans-serif; fill: #64748b; }
+      .card-title { font: 700 14px Arial, sans-serif; fill: #475569; }
+      .number { font: 800 34px Arial, sans-serif; fill: #0f172a; }
+      .small { font: 600 12px Arial, sans-serif; fill: #64748b; }
+      .panel-title { font: 700 16px Arial, sans-serif; fill: #1e293b; }
+      .label { font: 500 13px Arial, sans-serif; fill: #334155; }
+      .empty { font: 500 13px Arial, sans-serif; fill: #94a3b8; }
+    </style>
+  </defs>
+
+  <rect width="1440" height="960" fill="#f4f7fb"/>
+  <rect width="230" height="960" fill="#123c69"/>
+  <circle cx="55" cy="55" r="25" fill="#ffffff" opacity="0.95"/>
+  <text x="55" y="61" text-anchor="middle" font-family="Arial" font-size="14" font-weight="800" fill="#123c69">DPWH</text>
+  <text x="92" y="51" font-family="Arial" font-size="18" font-weight="800" fill="#ffffff">DPWH VERIFY</text>
+  <text x="92" y="70" font-family="Arial" font-size="11" fill="#bfdbfe">Admin Dashboard</text>
+
+  <rect x="18" y="112" width="194" height="44" rx="9" fill="#ffffff" opacity="0.16"/>
+  <text x="42" y="140" font-family="Arial" font-size="14" font-weight="700" fill="#ffffff">Dashboard</text>
+  <text x="32" y="202" font-family="Arial" font-size="11" font-weight="700" fill="#93c5fd">PERSONNEL</text>
+  <text x="42" y="238" font-family="Arial" font-size="14" fill="#e0f2fe">Register Inspector</text>
+  <text x="42" y="274" font-family="Arial" font-size="14" fill="#e0f2fe">Inspector Records</text>
+  <text x="32" y="330" font-family="Arial" font-size="11" font-weight="700" fill="#93c5fd">PROJECTS</text>
+  <text x="42" y="366" font-family="Arial" font-size="14" fill="#e0f2fe">All Projects</text>
+  <text x="42" y="402" font-family="Arial" font-size="14" fill="#e0f2fe">Add Project</text>
+  <text x="32" y="458" font-family="Arial" font-size="11" font-weight="700" fill="#93c5fd">MONITORING</text>
+  <text x="42" y="494" font-family="Arial" font-size="14" fill="#e0f2fe">Pending Reports</text>
+  <text x="42" y="530" font-family="Arial" font-size="14" fill="#e0f2fe">Audit Logs</text>
+
+  <rect x="230" y="0" width="1210" height="92" fill="#ffffff"/>
+  <text x="270" y="38" class="subtitle">Overview</text>
+  <text x="270" y="67" class="title">City Infrastructure Overview</text>
+  <text x="1370" y="55" text-anchor="end" class="small">Verified database snapshot · PostgreSQL</text>
+
+  <g filter="url(#shadow)">
+    <rect x="270" y="125" width="265" height="128" rx="14" fill="#ffffff"/>
+    <rect x="555" y="125" width="265" height="128" rx="14" fill="#ffffff"/>
+    <rect x="840" y="125" width="265" height="128" rx="14" fill="#ffffff"/>
+    <rect x="1125" y="125" width="265" height="128" rx="14" fill="#ffffff"/>
+  </g>
+  <text x="294" y="157" class="card-title">ACTIVE PROJECTS</text>
+  <text x="294" y="204" class="number">1</text>
+  <text x="294" y="229" class="small">Current PostgreSQL record</text>
+  <text x="579" y="157" class="card-title">REGISTERED INSPECTORS</text>
+  <text x="579" y="204" class="number">1</text>
+  <text x="579" y="229" class="small">Active inspector account</text>
+  <text x="864" y="157" class="card-title">PENDING REPORTS</text>
+  <text x="864" y="204" class="number">0</text>
+  <text x="864" y="229" class="small">All reports reviewed</text>
+  <text x="1149" y="157" class="card-title">FABRIC COMMITTED</text>
+  <text x="1149" y="204" class="number">0</text>
+  <text x="1149" y="229" class="small">Gateway integration pending</text>
+
+  <g filter="url(#shadow)">
+    <rect x="270" y="278" width="550" height="220" rx="14" fill="#ffffff"/>
+    <rect x="840" y="278" width="550" height="220" rx="14" fill="#ffffff"/>
+  </g>
+  <text x="294" y="314" class="panel-title">Project Status Overview</text>
+  <text x="294" y="354" class="label">Pending</text><text x="786" y="354" text-anchor="end" class="small">0</text>
+  <rect x="294" y="366" width="492" height="9" rx="5" fill="#e2e8f0"/>
+  <text x="294" y="407" class="label">Ongoing</text><text x="786" y="407" text-anchor="end" class="small">1</text>
+  <rect x="294" y="419" width="492" height="9" rx="5" fill="#e2e8f0"/>
+  <rect x="294" y="419" width="492" height="9" rx="5" fill="#2563eb"/>
+  <text x="294" y="460" class="label">Completed</text><text x="786" y="460" text-anchor="end" class="small">0</text>
+  <rect x="294" y="472" width="492" height="9" rx="5" fill="#e2e8f0"/>
+
+  <text x="864" y="314" class="panel-title">Verification Health</text>
+  <text x="864" y="354" class="label">Committed</text><text x="1356" y="354" text-anchor="end" class="small">0</text>
+  <rect x="864" y="366" width="492" height="9" rx="5" fill="#e2e8f0"/>
+  <text x="864" y="407" class="label">Pending</text><text x="1356" y="407" text-anchor="end" class="small">0</text>
+  <rect x="864" y="419" width="492" height="9" rx="5" fill="#e2e8f0"/>
+  <text x="864" y="460" class="label">Failed</text><text x="1356" y="460" text-anchor="end" class="small">0</text>
+  <rect x="864" y="472" width="492" height="9" rx="5" fill="#e2e8f0"/>
+
+  <g filter="url(#shadow)">
+    <rect x="270" y="523" width="710" height="220" rx="14" fill="#ffffff"/>
+    <rect x="1000" y="523" width="390" height="220" rx="14" fill="#ffffff"/>
+  </g>
+  <text x="294" y="559" class="panel-title">Reports Requiring Review</text>
+  <line x1="294" y1="578" x2="956" y2="578" stroke="#e2e8f0"/>
+  <text x="316" y="612" class="small">PROJECT</text>
+  <text x="536" y="612" class="small">INSPECTOR</text>
+  <text x="716" y="612" class="small">PROGRESS</text>
+  <text x="858" y="612" class="small">SUBMITTED</text>
+  <text x="625" y="685" text-anchor="middle" class="empty">No reports are waiting for review.</text>
+
+  <text x="1024" y="559" class="panel-title">Project Location Map</text>
+  <rect x="1024" y="580" width="342" height="137" rx="9" fill="#e8eef5"/>
+  <path d="M1024 628 H1366 M1024 675 H1366 M1090 580 V717 M1170 580 V717 M1260 580 V717" stroke="#cbd5e1" stroke-width="2"/>
+  <circle cx="1195" cy="646" r="10" fill="#2563eb"/>
+  <circle cx="1195" cy="646" r="20" fill="none" stroke="#2563eb" stroke-opacity="0.25" stroke-width="5"/>
+  <text x="1195" y="700" text-anchor="middle" class="small">1 project with coordinates</text>
+
+  <g filter="url(#shadow)">
+    <rect x="270" y="768" width="1120" height="150" rx="14" fill="#ffffff"/>
+  </g>
+  <text x="294" y="806" class="panel-title">Recent System and Audit Activity</text>
+  <line x1="294" y1="825" x2="1366" y2="825" stroke="#e2e8f0"/>
+  <text x="830" y="872" text-anchor="middle" class="empty">No audit activity has been recorded yet.</text>
+  <text x="1390" y="945" text-anchor="end" class="subtitle">DPWH Verify · Development progress snapshot · August 19, 2026</text>
+</svg>

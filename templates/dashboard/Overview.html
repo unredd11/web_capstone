@@ -4,45 +4,210 @@
 {% block breadcrumb %}Overview{% endblock %}
 {% block page_title %}City Infrastructure Overview{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+{% endblock %}
+
 {% block content %}
 
 <div class="row g-4 mb-4">
     <div class="col-xl-3 col-md-6">
         <div class="stat-card">
             <div class="stat-label">Active Projects</div>
-            <div class="stat-value">47</div>
-            <div class="stat-trend up">
-                <i class="bi bi-arrow-up"></i> 12% this month
+            <div class="stat-value">{{ active_projects }}</div>
+            <div class="stat-trend {% if active_projects_growth < 0 %}down{% else %}up{% endif %}">
+                <i class="bi {% if active_projects_growth < 0 %}bi-arrow-down{% else %}bi-arrow-up{% endif %}"></i>
+                {{ active_projects_growth }}% this month
             </div>
         </div>
     </div>
     <div class="col-xl-3 col-md-6">
         <div class="stat-card">
             <div class="stat-label">Registered Inspectors</div>
-            <div class="stat-value">12</div>
+            <div class="stat-value">{{ registered_inspectors }}</div>
             <div class="stat-trend up">
-                <i class="bi bi-arrow-up"></i> 2 new this week
+                <i class="bi bi-arrow-up"></i> {{ inspectors_this_week }} new this week
             </div>
         </div>
     </div>
     <div class="col-xl-3 col-md-6">
         <div class="stat-card">
             <div class="stat-label">Pending Reports</div>
-            <div class="stat-value">8</div>
-            <div class="stat-trend down">
-                <i class="bi bi-arrow-down"></i> 3 overdue
+            <div class="stat-value">{{ pending_reports }}</div>
+            <div class="stat-trend {% if pending_reports %}down{% else %}up{% endif %}">
+                <i class="bi {% if pending_reports %}bi-hourglass-split{% else %}bi-check-circle{% endif %}"></i>
+                {% if pending_reports %}awaiting review{% else %}all reports reviewed{% endif %}
             </div>
         </div>
     </div>
     <div class="col-xl-3 col-md-6">
         <div class="stat-card">
             <div class="stat-label">Blockchain Verified</div>
-            <div class="stat-value">1,247</div>
+            <div class="stat-value">{{ blockchain_verified }}</div>
             <div class="stat-trend up">
-                <i class="bi bi-arrow-up"></i> 86% pass rate
+                <i class="bi bi-shield-check"></i> {{ blockchain_pass_rate }}% pass rate
             </div>
         </div>
     </div>
 </div>
 
+<div class="row g-4 mb-4">
+    <div class="col-lg-6">
+        <section class="dash-card h-100">
+            <div class="card-header-custom">
+                <h6><i class="bi bi-bar-chart-fill me-2 text-primary"></i>Project Status Overview</h6>
+                <span>{{ total_projects }} total</span>
+            </div>
+            <div class="card-body-custom">
+                {% for item in project_statuses %}
+                <div class="progress-item">
+                    <div class="progress-header">
+                        <span class="progress-label">{{ item.label }}</span>
+                        <span class="progress-value">{{ item.count }}</span>
+                    </div>
+                    <div class="progress progress-sm">
+                        <div class="progress-bar bg-{{ item.color }}" style="width: {{ item.percentage }}%"></div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+    </div>
+
+    <div class="col-lg-6">
+        <section class="dash-card h-100">
+            <div class="card-header-custom">
+                <h6><i class="bi bi-shield-check me-2 text-success"></i>Verification Health</h6>
+                <span>{{ blockchain_total }} receipts</span>
+            </div>
+            <div class="card-body-custom">
+                {% for item in verification_health %}
+                <div class="progress-item">
+                    <div class="progress-header">
+                        <span class="progress-label">{{ item.label }}</span>
+                        <span class="progress-value">{{ item.count }}</span>
+                    </div>
+                    <div class="progress progress-sm">
+                        <div class="progress-bar bg-{{ item.color }}" style="width: {{ item.percentage }}%"></div>
+                    </div>
+                </div>
+                {% endfor %}
+                {% if not blockchain_total %}
+                <div class="simple-empty-state">
+                    <i class="bi bi-link-45deg"></i>
+                    <span>No Fabric receipts recorded yet.</span>
+                </div>
+                {% endif %}
+            </div>
+        </section>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-xl-7">
+        <section class="dash-card h-100">
+            <div class="card-header-custom">
+                <h6><i class="bi bi-clipboard-check me-2 text-warning"></i>Reports Requiring Review</h6>
+                <a href="{% url 'verifications:pending' %}" class="small text-decoration-none">View all</a>
+            </div>
+            <div class="table-responsive">
+                <table class="table-custom mb-0">
+                    <thead>
+                        <tr>
+                            <th>Project</th>
+                            <th>Inspector</th>
+                            <th>Progress</th>
+                            <th>Submitted</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for report in reports_requiring_review %}
+                        <tr>
+                            <td class="fw-semibold">{{ report.project.project_name }}</td>
+                            <td>{{ report.inspector.user.get_full_name|default:report.inspector.employee_id }}</td>
+                            <td>{{ report.progress_percentage }}%</td>
+                            <td>{{ report.submitted_at|date:"M d, Y" }}</td>
+                            <td><a href="{% url 'verifications:pending' %}" class="btn btn-sm btn-outline-primary">Review</a></td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5">
+                                <div class="simple-empty-state py-4">
+                                    <i class="bi bi-check-circle"></i>
+                                    <span>No reports are waiting for review.</span>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+        </section>
+    </div>
+</div>
+
+<section class="dash-card">
+    <div class="card-header-custom">
+        <h6><i class="bi bi-clock-history me-2 text-primary"></i>Recent System and Audit Activity</h6>
+        <span>Latest {{ recent_activity|length }} events</span>
+    </div>
+    <div class="card-body-custom">
+        {% for event in recent_activity %}
+        <div class="activity-item">
+            <div class="activity-dot {% if event.action_type == 'reject' %}dot-red{% elif event.action_type == 'approve' %}dot-green{% else %}dot-blue{% endif %}"></div>
+            <div class="activity-info flex-grow-1">
+                <span class="activity-title">
+                    {{ event.user.get_full_name|default:event.user.username|default:"System" }}
+                    {{ event.action_type|title }} — {{ event.target_entity }}{% if event.target_id %} #{{ event.target_id }}{% endif %}
+                </span>
+                <span class="activity-meta">{{ event.timestamp|date:"M d, Y — g:i A" }}</span>
+            </div>
+        </div>
+        {% empty %}
+        <div class="simple-empty-state py-4">
+            <i class="bi bi-journal-text"></i>
+            <span>No audit activity has been recorded yet.</span>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+
+{{ map_projects|json_script:"project-map-data" }}
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const mapElement = document.getElementById('project-map');
+        const dataElement = document.getElementById('project-map-data');
+        if (!mapElement || !dataElement || typeof L === 'undefined') return;
+
+        const projects = JSON.parse(dataElement.textContent);
+        const defaultCenter = [8.2280, 124.2452];
+        const map = L.map(mapElement, { scrollWheelZoom: false }).setView(defaultCenter, 11);
+
+
+        const bounds = [];
+        projects.forEach(function (project) {
+            const point = [Number(project.latitude), Number(project.longitude)];
+            const popup = document.createElement('div');
+            const title = document.createElement('strong');
+            const details = document.createElement('div');
+            title.textContent = project.name;
+            details.textContent = project.status + ' · ' + project.progress + '% progress';
+            popup.appendChild(title);
+            popup.appendChild(details);
+            L.marker(point).addTo(map).bindPopup(popup);
+            bounds.push(point);
+        });
+
+        if (bounds.length === 1) map.setView(bounds[0], 15);
+        if (bounds.length > 1) map.fitBounds(bounds, { padding: [24, 24] });
+    });
+</script>
 {% endblock %}

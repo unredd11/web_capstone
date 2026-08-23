@@ -3,10 +3,9 @@ from django.contrib.auth.models import User
 
 class Inspector(models.Model):
     DISTRICT_CHOICES = [
-        ('District I', 'District I — Caloocan'),
-        ('District II', 'District II — Marikina'),
-        ('District III', 'District III — Valenzuela'),
-        ('District IV', 'District IV — Quezon City'),
+        ('LDN 1st DEO', 'Lanao del Norte 1st DEO (Iligan City Area)'),
+        ('LDN 2nd DEO', 'Lanao del Norte 2nd DEO (Tubod Area)'),
+        ('Region X RO', 'DPWH Region X Regional Office (Northern Mindanao)'),
     ]
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='inspector_profile')
     employee_id = models.CharField(max_length=20, unique=True)

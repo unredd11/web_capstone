@@ -9,10 +9,9 @@ class Project(models.Model):
         ('Suspended', 'Suspended'),
     ]
     DISTRICT_CHOICES = [
-        ('District I', 'District I — Caloocan'),
-        ('District II', 'District II — Marikina'),
-        ('District III', 'District III — Valenzuela'),
-        ('District IV', 'District IV — Quezon City'),
+        ('LDN 1st DEO', 'Lanao del Norte 1st DEO (Iligan City Area)'),
+        ('LDN 2nd DEO', 'Lanao del Norte 2nd DEO (Tubod Area)'),
+        ('Region X RO', 'DPWH Region X Regional Office (Northern Mindanao)'),
     ]
     project_name = models.CharField(max_length=200, verbose_name="Project Name")
     description = models.TextField(blank=True, verbose_name="Description")
