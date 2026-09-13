@@ -104,12 +104,72 @@
 </div>
 
 <div class="row g-4 mb-4">
+
+    <!-- Recent System and Audit Activity -->
+    <div class="col-xl-5">
+        <section class="dash-card h-100">
+            <div class="card-header-custom">
+                <h6>
+                    <i class="bi bi-clock-history me-2 text-primary"></i>
+                    Recent System and Audit Activity
+                </h6>
+                <span>Latest {{ recent_activity|length }} events</span>
+            </div>
+
+            <div class="card-body-custom">
+                {% for event in recent_activity %}
+                <div class="activity-item">
+                    <div class="activity-dot
+                        {% if event.action_type == 'reject' %}
+                            dot-red
+                        {% elif event.action_type == 'approve' %}
+                            dot-green
+                        {% else %}
+                            dot-blue
+                        {% endif %}">
+                    </div>
+
+                    <div class="activity-info flex-grow-1">
+                        <span class="activity-title">
+                            {{ event.user.get_full_name|default:event.user.username|default:"System" }}
+                            {{ event.action_type|title }}
+                            — {{ event.target_entity }}
+
+                            {% if event.target_id %}
+                                #{{ event.target_id }}
+                            {% endif %}
+                        </span>
+
+                        <span class="activity-meta">
+                            {{ event.timestamp|date:"M d, Y — g:i A" }}
+                        </span>
+                    </div>
+                </div>
+
+                {% empty %}
+                <div class="simple-empty-state py-4">
+                    <i class="bi bi-journal-text"></i>
+                    <span>No audit activity has been recorded yet.</span>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+    </div>
+    
     <div class="col-xl-7">
         <section class="dash-card h-100">
             <div class="card-header-custom">
-                <h6><i class="bi bi-clipboard-check me-2 text-warning"></i>Reports Requiring Review</h6>
-                <a href="{% url 'verifications:pending' %}" class="small text-decoration-none">View all</a>
+                <h6>
+                    <i class="bi bi-clipboard-check me-2 text-warning"></i>
+                    Reports Requiring Review
+                </h6>
+
+                <a href="{% url 'verifications:pending' %}"
+                   class="small text-decoration-none">
+                    View all
+                </a>
             </div>
+
             <div class="table-responsive">
                 <table class="table-custom mb-0">
                     <thead>
@@ -121,15 +181,32 @@
                             <th></th>
                         </tr>
                     </thead>
+
                     <tbody>
                         {% for report in reports_requiring_review %}
                         <tr>
-                            <td class="fw-semibold">{{ report.project.project_name }}</td>
-                            <td>{{ report.inspector.user.get_full_name|default:report.inspector.employee_id }}</td>
+                            <td class="fw-semibold">
+                                {{ report.project.project_name }}
+                            </td>
+
+                            <td>
+                                {{ report.inspector.user.get_full_name|default:report.inspector.employee_id }}
+                            </td>
+
                             <td>{{ report.progress_percentage }}%</td>
-                            <td>{{ report.submitted_at|date:"M d, Y" }}</td>
-                            <td><a href="{% url 'verifications:pending' %}" class="btn btn-sm btn-outline-primary">Review</a></td>
+
+                            <td>
+                                {{ report.submitted_at|date:"M d, Y" }}
+                            </td>
+
+                            <td>
+                                <a href="{% url 'verifications:pending' %}"
+                                   class="btn btn-sm btn-outline-primary">
+                                    Review
+                                </a>
+                            </td>
                         </tr>
+
                         {% empty %}
                         <tr>
                             <td colspan="5">
@@ -145,35 +222,10 @@
             </div>
         </section>
     </div>
-        </section>
-    </div>
+
 </div>
 
-<section class="dash-card">
-    <div class="card-header-custom">
-        <h6><i class="bi bi-clock-history me-2 text-primary"></i>Recent System and Audit Activity</h6>
-        <span>Latest {{ recent_activity|length }} events</span>
-    </div>
-    <div class="card-body-custom">
-        {% for event in recent_activity %}
-        <div class="activity-item">
-            <div class="activity-dot {% if event.action_type == 'reject' %}dot-red{% elif event.action_type == 'approve' %}dot-green{% else %}dot-blue{% endif %}"></div>
-            <div class="activity-info flex-grow-1">
-                <span class="activity-title">
-                    {{ event.user.get_full_name|default:event.user.username|default:"System" }}
-                    {{ event.action_type|title }} — {{ event.target_entity }}{% if event.target_id %} #{{ event.target_id }}{% endif %}
-                </span>
-                <span class="activity-meta">{{ event.timestamp|date:"M d, Y — g:i A" }}</span>
-            </div>
-        </div>
-        {% empty %}
-        <div class="simple-empty-state py-4">
-            <i class="bi bi-journal-text"></i>
-            <span>No audit activity has been recorded yet.</span>
-        </div>
-        {% endfor %}
-    </div>
-</section>
+
 
 {{ map_projects|json_script:"project-map-data" }}
 

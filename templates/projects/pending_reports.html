@@ -21,6 +21,7 @@
                         <th>GPS Coordinates</th>
                         <th>Status</th>
                         <th>Submitted</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -28,14 +29,28 @@
                     <tr>
                         <td><strong>{{ report.project.project_name }}</strong></td>
                         <td>{{ report.inspector.user.get_full_name }}</td>
-                        <td style="font-family: monospace; font-size: 12px;">{{ report.image_hash|truncatechars:16 }}</td>
-                        <td>{{ report.latitude }}, {{ report.longitude }}</td>
+                        {% with image=report.images.first %}
+                        <td style="font-family: monospace; font-size: 12px;">
+                            {% if image %}{{ image.sha256_hash|truncatechars:16 }}{% else %}No image{% endif %}
+                        </td>
+                        <td>
+                            {% if image %}{{ image.latitude }}, {{ image.longitude }}{% else %}Not available{% endif %}
+                        </td>
+                        {% endwith %}
                         <td><span class="status-badge badge-pending">{{ report.status }}</span></td>
                         <td>{{ report.submitted_at|date:"M d, Y H:i" }}</td>
+                        <td>
+                        <a
+                            href="{% url 'verifications:report_detail' report.pk %}"
+                            class="btn btn-sm btn-outline-primary"
+                        >
+                            Review
+                        </a>
+                        </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="6" class="text-center py-4 text-muted">
+                        <td colspan="7" class="text-center py-4 text-muted">
                             <i class="bi bi-check-circle" style="font-size: 32px; color: var(--success);"></i>
                             <p class="mt-2 mb-0">No pending reports. All caught up!</p>
                         </td>
