@@ -32,7 +32,17 @@ class BlockchainRecordAdmin(admin.ModelAdmin):
     list_display = ('inspection_image', 'transaction_id', 'block_number', 'commit_status', 'committed_at')
     list_filter = ('commit_status', 'chaincode_name')
     search_fields = ('transaction_id', 'inspection_image__sha256_hash')
-    readonly_fields = ('created_at', 'updated_at')
+    readonly_fields = (
+        'inspection_image', 'transaction_id', 'block_number', 'chaincode_name',
+        'commit_status', 'committed_at', 'metadata_json', 'error_message',
+        'created_at', 'updated_at',
+    )
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(AuditLog)
@@ -40,4 +50,13 @@ class AuditLogAdmin(admin.ModelAdmin):
     list_display = ('timestamp', 'user', 'action_type', 'target_entity', 'target_id', 'ip_address')
     list_filter = ('action_type', 'target_entity')
     search_fields = ('user__username', 'action_type', 'target_entity', 'device_info')
-    readonly_fields = ('timestamp',)
+    readonly_fields = (
+        'user', 'action_type', 'target_entity', 'target_id', 'ip_address',
+        'device_info', 'timestamp',
+    )
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False

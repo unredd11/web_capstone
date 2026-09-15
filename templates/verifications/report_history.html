@@ -1,0 +1,160 @@
+{% extends 'base.html' %}
+
+{% block title %}Inspection Reports{% endblock %}
+{% block breadcrumb %}Monitoring{% endblock %}
+{% block page_title %}Inspection Report History{% endblock %}
+
+{% block content %}
+<div class="dash-card mb-4">
+    <div class="card-body-custom">
+        <form method="get" class="row g-3">
+            <div class="col-md-6">
+                <label class="form-label">
+                    Search
+                </label>
+
+                <input
+                    type="search"
+                    name="q"
+                    value="{{ search_query }}"
+                    class="form-control"
+                    placeholder="Project, inspector, or employee ID"
+                >
+            </div>
+
+            <div class="col-md-4">
+                <label class="form-label">
+                    Status
+                </label>
+
+                <select name="status" class="form-select">
+                    <option value="">All statuses</option>
+
+                    <option
+                        value="Pending"
+                        {% if selected_status == 'Pending' %}selected{% endif %}
+                    >
+                        Pending
+                    </option>
+
+                    <option
+                        value="Approved"
+                        {% if selected_status == 'Approved' %}selected{% endif %}
+                    >
+                        Approved
+                    </option>
+
+                    <option
+                        value="Rejected"
+                        {% if selected_status == 'Rejected' %}selected{% endif %}
+                    >
+                        Rejected
+                    </option>
+                </select>
+            </div>
+
+            <div class="col-md-2 d-flex align-items-end">
+                <button
+                    type="submit"
+                    class="btn btn-primary w-100"
+                >
+                    Filter
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="dash-card">
+    <div class="card-header-custom">
+        <h6>All Inspection Reports</h6>
+        <span>{{ reports.count }} records</span>
+    </div>
+
+    <div class="card-body-custom p-0">
+        <div class="table-responsive">
+            <table class="table-custom">
+                <thead>
+                    <tr>
+                        <th>Project</th>
+                        <th>Inspector</th>
+                        <th>Progress</th>
+                        <th>Geofence</th>
+                        <th>Status</th>
+                        <th>Submitted</th>
+                        <th>Reviewed By</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for report in reports %}
+                    <tr>
+                        <td>
+                            <strong>
+                                {{ report.project.project_name }}
+                            </strong>
+                        </td>
+
+                        <td>
+                            {{ report.inspector.user.get_full_name|default:report.inspector.employee_id }}
+                        </td>
+
+                        <td>
+                            {{ report.progress_percentage }}%
+                        </td>
+
+                        <td>
+                            {% with image=report.images.first %}
+                                {% if image %}
+                                    {{ image.geofence_status }}
+                                {% else %}
+                                    No image
+                                {% endif %}
+                            {% endwith %}
+                        </td>
+
+                        <td>
+                            <span class="status-badge badge-{{ report.status|lower }}">
+                                {{ report.status }}
+                            </span>
+                        </td>
+
+                        <td>
+                            {{ report.submitted_at|date:"M d, Y H:i" }}
+                        </td>
+
+                        <td>
+                            {% if report.reviewed_by %}
+                                {{ report.reviewed_by.get_full_name|default:report.reviewed_by.username }}
+                            {% else %}
+                                —
+                            {% endif %}
+                        </td>
+
+                        <td>
+                            <a
+                                href="{% url 'verifications:report_detail' report.pk %}"
+                                class="btn btn-sm btn-outline-primary"
+                            >
+                                View
+                            </a>
+                        </td>
+                    </tr>
+
+                    {% empty %}
+                    <tr>
+                        <td
+                            colspan="8"
+                            class="text-center text-muted py-4"
+                        >
+                            No reports matched the filters.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

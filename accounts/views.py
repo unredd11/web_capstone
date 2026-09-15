@@ -1,14 +1,61 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import get_object_or_404, render, redirect
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import user_passes_test
 from django.contrib.auth.models import User
+from django.db import transaction
+from django.views.decorators.http import require_POST
+
+from verifications.audit import record_audit_event
+
 from .forms import InspectorRegistrationForm
 from .models import Inspector
+
 
 def is_admin_user(user):
     """Check if user is authenticated and holds administrator privileges."""
     return user.is_authenticated and (user.is_staff or user.is_superuser)
+
+
+@user_passes_test(
+    is_admin_user,
+    login_url='accounts:login',
+)
+@require_POST
+@transaction.atomic
+def toggle_inspector_status(request, pk):
+    inspector = get_object_or_404(
+        Inspector.objects.select_related('user'),
+        pk=pk,
+    )
+
+    new_status = not inspector.is_active
+
+    inspector.is_active = new_status
+    inspector.save(update_fields=['is_active'])
+
+    inspector.user.is_active = new_status
+    inspector.user.save(update_fields=['is_active'])
+
+    record_audit_event(
+        request=request,
+        action_type=(
+            'activate_inspector'
+            if new_status
+            else 'deactivate_inspector'
+        ),
+        target_entity='Inspector',
+        target_id=inspector.pk,
+    )
+
+    action = 'activated' if new_status else 'deactivated'
+
+    messages.success(
+        request,
+        f'{inspector.user.get_full_name()} was {action}.',
+    )
+
+    return redirect('accounts:inspector_list')
 
 def admin_login(request):
     if request.user.is_authenticated:
@@ -49,6 +96,7 @@ def admin_logout(request):
     return redirect('accounts:login')
 
 @user_passes_test(is_admin_user, login_url='accounts:login')
+@transaction.atomic
 def register_inspector(request):
     if request.method == 'POST':
         form = InspectorRegistrationForm(request.POST)
@@ -60,12 +108,18 @@ def register_inspector(request):
                 first_name=form.cleaned_data['first_name'],
                 last_name=form.cleaned_data['last_name'],
             )
-            Inspector.objects.create(
+            inspector = Inspector.objects.create(
                 user=user,
                 employee_id=form.cleaned_data['employee_id'],
                 phone=form.cleaned_data['phone'],
                 district=form.cleaned_data['district'],
                 position=form.cleaned_data['position'],
+            )
+            record_audit_event(
+                request=request,
+                action_type='register_inspector',
+                target_entity='Inspector',
+                target_id=inspector.pk,
             )
             messages.success(request, f"Inspector {user.get_full_name()} registered successfully!")
             return redirect('accounts:inspector_list')

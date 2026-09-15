@@ -1,13 +1,25 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import user_passes_test
 from django.db import transaction
+from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
-from .forms import InspectionImageForm, ReportReviewForm
-from .models import AuditLog, VerificationReport
-from .services import calculate_distance_meters, calculate_phash, calculate_sha256
+from projects.models import Project
 
+from .audit import record_audit_event
+from .forms import InspectionImageForm, ReportReviewForm
+from .models import (
+    AuditLog,
+    BlockchainRecord,
+    VerificationReport,
+)
+
+from .services import (
+    calculate_distance_meters,
+    calculate_phash,
+    calculate_sha256,
+)
 
 def is_admin_user(user):
     return user.is_authenticated and (user.is_staff or user.is_superuser)
@@ -24,6 +36,72 @@ def pending_reports(request):
         {'reports': reports, 'active_page': 'pending_reports'},
     )
 
+@user_passes_test(
+    is_admin_user,
+    login_url='accounts:login',
+)
+def report_history(request):
+    reports = VerificationReport.objects.select_related(
+        'project',
+        'inspector__user',
+        'reviewed_by',
+    ).prefetch_related(
+        'images',
+    )
+
+    selected_status = request.GET.get(
+        'status',
+        '',
+    ).strip()
+
+    search_query = request.GET.get(
+        'q',
+        '',
+    ).strip()
+
+    if selected_status in {
+        'Pending',
+        'Approved',
+        'Rejected',
+    }:
+        reports = reports.filter(
+            status=selected_status
+        )
+
+    if search_query:
+        reports = reports.filter(
+            Q(
+                project__project_name__icontains=(
+                    search_query
+                )
+            )
+            | Q(
+                inspector__employee_id__icontains=(
+                    search_query
+                )
+            )
+            | Q(
+                inspector__user__first_name__icontains=(
+                    search_query
+                )
+            )
+            | Q(
+                inspector__user__last_name__icontains=(
+                    search_query
+                )
+            )
+        )
+
+    return render(
+        request,
+        'verifications/report_history.html',
+        {
+            'reports': reports,
+            'selected_status': selected_status,
+            'search_query': search_query,
+            'active_page': 'report_history',
+        },
+    )
 
 @user_passes_test(is_admin_user, login_url='accounts:login')
 def report_detail(request, pk):
@@ -100,7 +178,43 @@ def upload_inspection_image(request, pk):
         if distance <= float(report.project.geofence_radius)
         else 'Outside'
     )
+
     image.save()
+
+    blockchain_record, blockchain_created = (
+        BlockchainRecord.objects.get_or_create(
+            inspection_image=image,
+            defaults={
+                'chaincode_name': 'evidence',
+                'commit_status': 'Pending',
+                'metadata_json': {
+                    'report_id': report.pk,
+                    'image_id': image.pk,
+                    'project_id': report.project_id,
+                    'inspector_id': report.inspector_id,
+                    'sha256_hash': image.sha256_hash,
+                    'perceptual_hash': image.perceptual_hash,
+                    'latitude': str(image.latitude),
+                    'longitude': str(image.longitude),
+                    'captured_at': image.captured_at.isoformat(),
+                    'geofence_distance': (
+                        str(image.geofence_distance)
+                        if image.geofence_distance is not None
+                        else None
+                    ),
+                    'geofence_status': image.geofence_status,
+                },
+            },
+        )
+    )
+
+    if blockchain_created:
+        record_audit_event(
+            request=request,
+            action_type='prepare_blockchain_record',
+            target_entity='BlockchainRecord',
+            target_id=blockchain_record.pk,
+        )
 
     report.image_hash = image.sha256_hash
     report.latitude = image.latitude
@@ -121,7 +235,6 @@ def upload_inspection_image(request, pk):
         f'Image uploaded successfully. Geofence result: {image.geofence_status}.',
     )
     return redirect('verifications:report_detail', pk=report.pk)
-
 
 @user_passes_test(is_admin_user, login_url='accounts:login')
 @transaction.atomic
@@ -163,17 +276,42 @@ def review_report(request, pk):
     report.review_notes = form.cleaned_data['review_notes']
     report.reviewed_by = request.user
     report.reviewed_at = timezone.now()
+
     report.save(
         update_fields=['status', 'review_notes', 'reviewed_by', 'reviewed_at']
     )
 
-    AuditLog.objects.create(
-        user=request.user,
+    if report.status == 'Approved':
+        project = Project.objects.select_for_update().get(
+            pk=report.project_id
+        )
+
+        if (
+            report.progress_percentage
+            > project.progress_percentage
+        ):
+            project.progress_percentage = (
+                report.progress_percentage
+            )
+
+            if project.progress_percentage >= 100:
+                project.status = 'Completed'
+            elif project.status == 'Pending':
+                project.status = 'Ongoing'
+
+            project.save(
+                update_fields=[
+                    'progress_percentage',
+                    'status',
+                    'updated_at',
+                ]
+            )
+
+    record_audit_event(
+        request=request,
         action_type=report.status.lower(),
         target_entity='VerificationReport',
         target_id=report.pk,
-        ip_address=request.META.get('REMOTE_ADDR'),
-        device_info=request.META.get('HTTP_USER_AGENT', '')[:255],
     )
 
     messages.success(request, f'Report #{report.pk} was {report.status.lower()}.')

@@ -200,7 +200,7 @@
                             </td>
 
                             <td>
-                                <a href="{% url 'verifications:pending' %}"
+                                <a href="{% url 'verifications:report_detail' report.pk %}"
                                    class="btn btn-sm btn-outline-primary">
                                     Review
                                 </a>
@@ -225,7 +225,29 @@
 
 </div>
 
+<div class="row g-4 mb-4">
+    <div class="col-12">
+        <section class="dash-card">
+            <div class="card-header-custom">
+                <h6>
+                    <i class="bi bi-geo-alt-fill me-2 text-danger"></i>
+                    Project Location Map
+                </h6>
 
+                <span>
+                    {{ total_projects }} projects
+                </span>
+            </div>
+
+            <div class="card-body-custom">
+                <div
+                    id="project-map"
+                    style="height: 380px; width: 100%; border-radius: 8px;"
+                ></div>
+            </div>
+        </section>
+    </div>
+</div>
 
 {{ map_projects|json_script:"project-map-data" }}
 

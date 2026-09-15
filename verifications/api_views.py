@@ -6,15 +6,15 @@ from django.contrib.auth import authenticate, get_user_model
 from django.core import signing
 from django.core.signing import BadSignature, SignatureExpired
 from django.db import transaction
-from django.db.models import Q
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 
 from accounts.models import Inspector
 from projects.models import Project
+
+from .audit import record_audit_event
 from .forms import InspectionImageForm
 from .models import (
-    AuditLog,
     BlockchainRecord,
     InspectionImage,
     VerificationReport,
@@ -25,6 +25,85 @@ from .services import (
     calculate_sha256,
 )
 
+def serialize_mobile_report(request, report):
+    image_data = []
+
+    for image in report.images.all():
+        blockchain_record = getattr(
+            image,
+            'blockchain_record',
+            None,
+        )
+
+        image_data.append(
+            {
+                'id': image.pk,
+                'image_url': (
+                    request.build_absolute_uri(
+                        image.image_file.url
+                    )
+                    if image.image_file
+                    else None
+                ),
+                'sha256_hash': image.sha256_hash,
+                'perceptual_hash': image.perceptual_hash,
+                'latitude': str(image.latitude),
+                'longitude': str(image.longitude),
+                'captured_at': image.captured_at.isoformat(),
+                'geofence_distance': (
+                    str(image.geofence_distance)
+                    if image.geofence_distance is not None
+                    else None
+                ),
+                'geofence_status': image.geofence_status,
+                'blockchain': {
+                    'commit_status': (
+                        blockchain_record.commit_status
+                        if blockchain_record
+                        else 'Not Prepared'
+                    ),
+                    'transaction_id': (
+                        blockchain_record.transaction_id
+                        if blockchain_record
+                        else None
+                    ),
+                    'block_number': (
+                        blockchain_record.block_number
+                        if blockchain_record
+                        else None
+                    ),
+                },
+            }
+        )
+
+    return {
+        'id': report.pk,
+        'project': {
+            'id': report.project.pk,
+            'project_name': report.project.project_name,
+        },
+        'progress_percentage': str(
+            report.progress_percentage
+        ),
+        'accomplishment_description': (
+            report.accomplishment_description
+        ),
+        'status': report.status,
+        'submitted_at': report.submitted_at.isoformat(),
+        'reviewed_at': (
+            report.reviewed_at.isoformat()
+            if report.reviewed_at
+            else None
+        ),
+        'review_notes': report.review_notes,
+        'reviewed_by': (
+            report.reviewed_by.get_full_name()
+            or report.reviewed_by.username
+            if report.reviewed_by
+            else None
+        ),
+        'images': image_data,
+    }
 
 TOKEN_SALT = 'mobile-inspector-api'
 TOKEN_MAX_AGE = 24 * 60 * 60
@@ -160,16 +239,12 @@ def mobile_login(request):
         compress=True,
     )
 
-    AuditLog.objects.create(
+    record_audit_event(
+        request=request,
         user=user,
         action_type='mobile_login',
         target_entity='Inspector',
         target_id=inspector.pk,
-        ip_address=request.META.get('REMOTE_ADDR'),
-        device_info=request.META.get(
-            'HTTP_USER_AGENT',
-            '',
-        )[:255],
     )
 
     return JsonResponse(
@@ -199,9 +274,8 @@ def mobile_projects(request):
         )
 
     projects = Project.objects.filter(
-        Q(assigned_inspector=request.inspector)
-        | Q(assignments__inspector=request.inspector)
-    ).distinct()
+        assigned_inspector=request.inspector
+    )
 
     project_data = []
 
@@ -270,10 +344,9 @@ def mobile_submit_report(request):
         return api_error('project_id must be a number.')
 
     project = Project.objects.filter(
-        Q(assigned_inspector=request.inspector)
-        | Q(assignments__inspector=request.inspector),
+        assigned_inspector=request.inspector,
         pk=project_id,
-    ).distinct().first()
+    ).first()
 
     if project is None:
         return api_error(
@@ -380,7 +453,7 @@ def mobile_submit_report(request):
             ]
         )
 
-        BlockchainRecord.objects.create(
+        blockchain_record = BlockchainRecord.objects.create(
             inspection_image=inspection_image,
             chaincode_name='evidence',
             commit_status='Pending',
@@ -396,16 +469,19 @@ def mobile_submit_report(request):
             },
         )
 
-        AuditLog.objects.create(
+        record_audit_event(
+            request=request,
             user=request.api_user,
             action_type='mobile_report_submission',
             target_entity='VerificationReport',
             target_id=report.pk,
-            ip_address=request.META.get('REMOTE_ADDR'),
-            device_info=request.META.get(
-                'HTTP_USER_AGENT',
-                '',
-            )[:255],
+        )
+        record_audit_event(
+            request=request,
+            user=request.api_user,
+            action_type='prepare_blockchain_record',
+            target_entity='BlockchainRecord',
+            target_id=blockchain_record.pk,
         )
 
     return JsonResponse(
@@ -435,4 +511,85 @@ def mobile_submit_report(request):
             },
         },
         status=201,
+    )
+
+@csrf_exempt
+@inspector_token_required
+def mobile_report_history(request):
+    if request.method != 'GET':
+        return api_error(
+            'Only GET requests are allowed.',
+            status=405,
+        )
+
+    reports = VerificationReport.objects.filter(
+        inspector=request.inspector
+    ).select_related(
+        'project',
+        'reviewed_by',
+    ).prefetch_related(
+        'images__blockchain_record',
+    )
+
+    selected_status = request.GET.get(
+        'status',
+        '',
+    ).strip()
+
+    if selected_status in {
+        'Pending',
+        'Approved',
+        'Rejected',
+    }:
+        reports = reports.filter(
+            status=selected_status
+        )
+
+    report_data = [
+        serialize_mobile_report(request, report)
+        for report in reports
+    ]
+
+    return JsonResponse(
+        {
+            'success': True,
+            'count': len(report_data),
+            'reports': report_data,
+        }
+    )
+
+
+@csrf_exempt
+@inspector_token_required
+def mobile_report_detail(request, report_id):
+    if request.method != 'GET':
+        return api_error(
+            'Only GET requests are allowed.',
+            status=405,
+        )
+
+    report = VerificationReport.objects.filter(
+        pk=report_id,
+        inspector=request.inspector,
+    ).select_related(
+        'project',
+        'reviewed_by',
+    ).prefetch_related(
+        'images__blockchain_record',
+    ).first()
+
+    if report is None:
+        return api_error(
+            'The report does not exist or does not belong to you.',
+            status=404,
+        )
+
+    return JsonResponse(
+        {
+            'success': True,
+            'report': serialize_mobile_report(
+                request,
+                report,
+            ),
+        }
     )

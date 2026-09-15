@@ -6,10 +6,20 @@
 
 {% block content %}
 <div class="dash-card">
-    <div class="card-header-custom">
-        <h6><i class="bi bi-clock-history me-2"></i>Reports Awaiting Review</h6>
-        <span class="badge bg-warning text-dark">{{ reports.count }} pending</span>
+    <div class="card-header-custom d-flex justify-content-between align-items-center">
+        <div>
+            <h6 class="mb-0 d-inline-block"><i class="bi bi-clock-history me-2"></i>Reports Awaiting Review</h6>
+            <span class="badge bg-warning text-dark ms-2">{{ reports.count }} pending</span>
+        </div>
+
+        <a
+            href="{% url 'verifications:report_history' %}"
+            class="btn btn-sm btn-outline-primary"
+        >
+            View Report History
+        </a>
     </div>
+
     <div class="card-body-custom p-0">
         <div class="table-responsive">
             <table class="table-custom">

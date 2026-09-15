@@ -19,11 +19,26 @@ urlpatterns = [
         api_views.mobile_submit_report,
         name='mobile_submit_report',
     ),
+    path(
+        'api/mobile/reports/',
+        api_views.mobile_report_history,
+        name='mobile_report_history',
+    ),
+    path(
+        'api/mobile/reports/<int:report_id>/',
+        api_views.mobile_report_detail,
+        name='mobile_report_detail',
+    ),
 
     path(
         'pending/',
         views.pending_reports,
         name='pending',
+    ),
+    path(
+        'history/',
+        views.report_history,
+        name='report_history',
     ),
     path(
         '<int:pk>/',

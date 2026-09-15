@@ -24,6 +24,7 @@
                         <th>Position</th>
                         <th>Status</th>
                         <th>Registered</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -42,10 +43,36 @@
                             {% endif %}
                         </td>
                         <td>{{ inspector.date_registered|date:"M d, Y" }}</td>
+                        <td>
+                            <form
+                                method="post"
+                                action="{% url 'accounts:toggle_inspector_status' inspector.pk %}"
+                            >
+                                {% csrf_token %}
+
+                                {% if inspector.is_active %}
+                                <button
+                                    type="submit"
+                                    class="btn btn-sm btn-outline-danger"
+                                    onclick="return confirm('Deactivate this inspector?');"
+                                >
+                                    Deactivate
+                                </button>
+                                {% else %}
+                                <button
+                                    type="submit"
+                                    class="btn btn-sm btn-outline-success"
+                                >
+                                    Reactivate
+                                </button>
+                                {% endif %}
+                            </form>
+                        </td>
+
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="7" class="text-center py-4 text-muted">
+                        <td colspan="8" class="text-center py-4 text-muted">
                             <i class="bi bi-inbox" style="font-size: 32px;"></i>
                             <p class="mt-2 mb-0">No inspectors registered yet.</p>
                         </td>
