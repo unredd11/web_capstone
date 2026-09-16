@@ -8,67 +8,122 @@
 <div class="dash-card mb-4">
     <div class="card-body-custom">
         <form method="get" class="row g-3">
-            <div class="col-md-6">
-                <label class="form-label">
-                    Search
-                </label>
+        <div class="col-lg-4">
+            <label class="form-label">Search</label>
+            <input
+                type="search"
+                name="q"
+                value="{{ search_query }}"
+                class="form-control"
+                placeholder="Project, inspector, or description"
+            >
+        </div>
 
-                <input
-                    type="search"
-                    name="q"
-                    value="{{ search_query }}"
-                    class="form-control"
-                    placeholder="Project, inspector, or employee ID"
+        <div class="col-lg-2 col-md-4">
+            <label class="form-label">Status</label>
+            <select name="status" class="form-select">
+                <option value="">All statuses</option>
+
+                <option
+                    value="Pending"
+                    {% if selected_status == 'Pending' %}selected{% endif %}
                 >
-            </div>
+                    Pending
+                </option>
 
-            <div class="col-md-4">
-                <label class="form-label">
-                    Status
-                </label>
-
-                <select name="status" class="form-select">
-                    <option value="">All statuses</option>
-
-                    <option
-                        value="Pending"
-                        {% if selected_status == 'Pending' %}selected{% endif %}
-                    >
-                        Pending
-                    </option>
-
-                    <option
-                        value="Approved"
-                        {% if selected_status == 'Approved' %}selected{% endif %}
-                    >
-                        Approved
-                    </option>
-
-                    <option
-                        value="Rejected"
-                        {% if selected_status == 'Rejected' %}selected{% endif %}
-                    >
-                        Rejected
-                    </option>
-                </select>
-            </div>
-
-            <div class="col-md-2 d-flex align-items-end">
-                <button
-                    type="submit"
-                    class="btn btn-primary w-100"
+                <option
+                    value="Approved"
+                    {% if selected_status == 'Approved' %}selected{% endif %}
                 >
-                    Filter
-                </button>
-            </div>
-        </form>
+                    Approved
+                </option>
+
+                <option
+                    value="Rejected"
+                    {% if selected_status == 'Rejected' %}selected{% endif %}
+                >
+                    Rejected
+                </option>
+            </select>
+        </div>
+
+        <div class="col-lg-3 col-md-4">
+            <label class="form-label">Project</label>
+            <select name="project" class="form-select">
+                <option value="">All projects</option>
+
+                {% for project in projects %}
+                <option
+                    value="{{ project.pk }}"
+                    {% if selected_project == project.pk|stringformat:"s" %}selected{% endif %}
+                >
+                    {{ project.project_name }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="col-lg-3 col-md-4">
+            <label class="form-label">Inspector</label>
+            <select name="inspector" class="form-select">
+                <option value="">All inspectors</option>
+
+                {% for inspector in inspectors %}
+                <option
+                    value="{{ inspector.pk }}"
+                    {% if selected_inspector == inspector.pk|stringformat:"s" %}selected{% endif %}
+                >
+                    {{ inspector.user.get_full_name|default:inspector.employee_id }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="col-md-3">
+            <label class="form-label">Submitted from</label>
+            <input
+                type="date"
+                name="date_from"
+                value="{{ date_from }}"
+                class="form-control"
+            >
+        </div>
+
+        <div class="col-md-3">
+            <label class="form-label">Submitted to</label>
+            <input
+                type="date"
+                name="date_to"
+                value="{{ date_to }}"
+                class="form-control"
+            >
+        </div>
+
+        <div class="col-md-3 d-flex align-items-end">
+            <button
+                type="submit"
+                class="btn btn-primary w-100"
+            >
+                Apply Filters
+            </button>
+        </div>
+
+        <div class="col-md-3 d-flex align-items-end">
+            <a
+                href="{% url 'verifications:report_history' %}"
+                class="btn btn-outline-secondary w-100"
+            >
+                Clear Filters
+            </a>
+        </div>
+    </form>
     </div>
 </div>
 
 <div class="dash-card">
     <div class="card-header-custom">
         <h6>All Inspection Reports</h6>
-        <span>{{ reports.count }} records</span>
+        <span>{{ report_count }} records</span>
     </div>
 
     <div class="card-body-custom p-0">
@@ -157,4 +212,38 @@
         </div>
     </div>
 </div>
+{% if page_obj.paginator.num_pages > 1 %}
+<nav class="p-3" aria-label="Report pages">
+    <ul class="pagination justify-content-center mb-0">
+        {% if page_obj.has_previous %}
+        <li class="page-item">
+            <a
+                class="page-link"
+                href="?q={{ search_query|urlencode }}&status={{ selected_status|urlencode }}&project={{ selected_project|urlencode }}&inspector={{ selected_inspector|urlencode }}&date_from={{ date_from|urlencode }}&date_to={{ date_to|urlencode }}&page={{ page_obj.previous_page_number }}"
+            >
+                Previous
+            </a>
+        </li>
+        {% endif %}
+
+        <li class="page-item disabled">
+            <span class="page-link">
+                Page {{ page_obj.number }} of
+                {{ page_obj.paginator.num_pages }}
+            </span>
+        </li>
+
+        {% if page_obj.has_next %}
+        <li class="page-item">
+            <a
+                class="page-link"
+                href="?q={{ search_query|urlencode }}&status={{ selected_status|urlencode }}&project={{ selected_project|urlencode }}&inspector={{ selected_inspector|urlencode }}&date_from={{ date_from|urlencode }}&date_to={{ date_to|urlencode }}&page={{ page_obj.next_page_number }}"
+            >
+                Next
+            </a>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
 {% endblock %}

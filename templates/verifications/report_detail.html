@@ -31,6 +31,26 @@
             {{ report.accomplishment_description|default:"No description" }}
         </p>
 
+        {% if report.resubmission_of %}
+        <p>
+            <strong>Resubmission of:</strong>
+            <a href="{% url 'verifications:report_detail' report.resubmission_of.pk %}">
+                Report #{{ report.resubmission_of.pk }}
+            </a>
+        </p>
+        {% endif %}
+
+        {% with replacement=report.resubmissions.first %}
+            {% if replacement %}
+            <p>
+                <strong>Replacement report:</strong>
+                <a href="{% url 'verifications:report_detail' replacement.pk %}">
+                    Report #{{ replacement.pk }}
+                </a>
+            </p>
+            {% endif %}
+        {% endwith %}
+
         <p>
             <strong>Submitted:</strong>
             {{ report.submitted_at|date:"M d, Y — g:i A" }}

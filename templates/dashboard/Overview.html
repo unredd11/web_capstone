@@ -5,7 +5,12 @@
 {% block page_title %}City Infrastructure Overview{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+>
 {% endblock %}
 
 {% block content %}
@@ -235,15 +240,21 @@
                 </h6>
 
                 <span>
-                    {{ total_projects }} projects
+                    {{ map_projects|length }} mapped projects
                 </span>
             </div>
 
             <div class="card-body-custom">
-                <div
-                    id="project-map"
-                    style="height: 380px; width: 100%; border-radius: 8px;"
-                ></div>
+                <div class="map-wrap">
+                    <div
+                        id="project-map"
+                        role="region"
+                        aria-label="Project location map"
+                    ></div>
+                    <div id="project-map-message" class="map-empty-message">
+                        Loading map...
+                    </div>
+                </div>
             </div>
         </section>
     </div>
@@ -254,34 +265,106 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+></script>
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         const mapElement = document.getElementById('project-map');
         const dataElement = document.getElementById('project-map-data');
-        if (!mapElement || !dataElement || typeof L === 'undefined') return;
+        const messageElement = document.getElementById('project-map-message');
 
-        const projects = JSON.parse(dataElement.textContent);
+        function showMapMessage(message) {
+            if (!messageElement) return;
+            messageElement.textContent = message;
+            messageElement.hidden = false;
+        }
+
+        function hideMapMessage() {
+            if (messageElement) messageElement.hidden = true;
+        }
+
+        if (!mapElement || !dataElement) return;
+
+        if (typeof L === 'undefined') {
+            showMapMessage('Leaflet could not load. Check your internet connection and refresh the page.');
+            return;
+        }
+
+        let projects;
+
+        try {
+            projects = JSON.parse(dataElement.textContent);
+        } catch (error) {
+            showMapMessage('The project location data could not be read.');
+            return;
+        }
+
         const defaultCenter = [8.2280, 124.2452];
         const map = L.map(mapElement, { scrollWheelZoom: false }).setView(defaultCenter, 11);
 
-
         const bounds = [];
+        const tileLayer = L.tileLayer(
+            'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
+            {
+                subdomains: 'abc',
+                maxZoom: 17,
+                attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, map style &copy; <a href="https://opentopomap.org">OpenTopoMap</a>'
+            }
+        );
+
+        tileLayer.on('load', function () {
+            if (bounds.length) hideMapMessage();
+        });
+
+        tileLayer.on('tileerror', function () {
+            showMapMessage('The map provider could not load. Check your internet connection and refresh the page.');
+        });
+
+        tileLayer.addTo(map);
+
         projects.forEach(function (project) {
-            const point = [Number(project.latitude), Number(project.longitude)];
+            const latitude = Number(project.latitude);
+            const longitude = Number(project.longitude);
+
+            if (
+                !Number.isFinite(latitude)
+                || !Number.isFinite(longitude)
+                || latitude < -90
+                || latitude > 90
+                || longitude < -180
+                || longitude > 180
+            ) {
+                return;
+            }
+
+            const point = [latitude, longitude];
             const popup = document.createElement('div');
             const title = document.createElement('strong');
             const details = document.createElement('div');
             title.textContent = project.name;
+            details.textContent = project.status + ' - ' + project.progress + '% progress';
             details.textContent = project.status + ' · ' + project.progress + '% progress';
+            details.textContent = project.status + ' - ' + project.progress + '% progress';
             popup.appendChild(title);
             popup.appendChild(details);
             L.marker(point).addTo(map).bindPopup(popup);
             bounds.push(point);
         });
 
-        if (bounds.length === 1) map.setView(bounds[0], 15);
-        if (bounds.length > 1) map.fitBounds(bounds, { padding: [24, 24] });
+        if (!bounds.length) {
+            showMapMessage('No projects have valid latitude and longitude coordinates yet.');
+        } else if (bounds.length === 1) {
+            map.setView(bounds[0], 15);
+        } else {
+            map.fitBounds(bounds, { padding: [24, 24], maxZoom: 16 });
+        }
+
+        window.setTimeout(function () {
+            map.invalidateSize();
+        }, 100);
     });
 </script>
 {% endblock %}

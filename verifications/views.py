@@ -4,6 +4,10 @@ from django.db import transaction
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.core.paginator import Paginator
+from django.utils.dateparse import parse_date
+
+from accounts.models import Inspector
 
 from projects.models import Project
 
@@ -49,24 +53,21 @@ def report_history(request):
         'images',
     )
 
-    selected_status = request.GET.get(
-        'status',
+    search_query = request.GET.get('q', '').strip()
+    selected_status = request.GET.get('status', '').strip()
+    selected_project = request.GET.get('project', '').strip()
+    selected_inspector = request.GET.get(
+        'inspector',
         '',
     ).strip()
-
-    search_query = request.GET.get(
-        'q',
+    date_from_value = request.GET.get(
+        'date_from',
         '',
     ).strip()
-
-    if selected_status in {
-        'Pending',
-        'Approved',
-        'Rejected',
-    }:
-        reports = reports.filter(
-            status=selected_status
-        )
+    date_to_value = request.GET.get(
+        'date_to',
+        '',
+    ).strip()
 
     if search_query:
         reports = reports.filter(
@@ -90,27 +91,185 @@ def report_history(request):
                     search_query
                 )
             )
+            | Q(
+                accomplishment_description__icontains=(
+                    search_query
+                )
+            )
         )
+
+    if selected_status in {
+        'Pending',
+        'Approved',
+        'Rejected',
+    }:
+        reports = reports.filter(
+            status=selected_status
+        )
+
+    if selected_project.isdigit():
+        reports = reports.filter(
+            project_id=int(selected_project)
+        )
+
+    if selected_inspector.isdigit():
+        reports = reports.filter(
+            inspector_id=int(selected_inspector)
+        )
+
+    date_from = parse_date(date_from_value)
+    date_to = parse_date(date_to_value)
+
+    if date_from:
+        reports = reports.filter(
+            submitted_at__date__gte=date_from
+        )
+
+    if date_to:
+        reports = reports.filter(
+            submitted_at__date__lte=date_to
+        )
+
+    paginator = Paginator(reports, 10)
+    page_obj = paginator.get_page(
+        request.GET.get('page')
+    )
 
     return render(
         request,
         'verifications/report_history.html',
         {
-            'reports': reports,
-            'selected_status': selected_status,
+            'reports': page_obj,
+            'page_obj': page_obj,
+            'report_count': paginator.count,
+            'projects': Project.objects.order_by(
+                'project_name'
+            ),
+            'inspectors': Inspector.objects.select_related(
+                'user'
+            ).order_by(
+                'user__first_name',
+                'user__last_name',
+            ),
             'search_query': search_query,
+            'selected_status': selected_status,
+            'selected_project': selected_project,
+            'selected_inspector': selected_inspector,
+            'date_from': date_from_value,
+            'date_to': date_to_value,
             'active_page': 'report_history',
         },
     )
+
+@user_passes_test(
+    is_admin_user,
+    login_url='accounts:login',
+)
+def audit_log_list(request):
+    audit_logs = AuditLog.objects.select_related(
+        'user'
+    )
+
+    search_query = request.GET.get('q', '').strip()
+    selected_action = request.GET.get(
+        'action',
+        '',
+    ).strip()
+    date_from_value = request.GET.get(
+        'date_from',
+        '',
+    ).strip()
+    date_to_value = request.GET.get(
+        'date_to',
+        '',
+    ).strip()
+
+    if search_query:
+        audit_logs = audit_logs.filter(
+            Q(
+                user__username__icontains=search_query
+            )
+            | Q(
+                user__first_name__icontains=(
+                    search_query
+                )
+            )
+            | Q(
+                user__last_name__icontains=(
+                    search_query
+                )
+            )
+            | Q(
+                action_type__icontains=search_query
+            )
+            | Q(
+                target_entity__icontains=search_query
+            )
+            | Q(
+                device_info__icontains=search_query
+            )
+        )
+
+    if selected_action:
+        audit_logs = audit_logs.filter(
+            action_type=selected_action
+        )
+
+    date_from = parse_date(date_from_value)
+    date_to = parse_date(date_to_value)
+
+    if date_from:
+        audit_logs = audit_logs.filter(
+            timestamp__date__gte=date_from
+        )
+
+    if date_to:
+        audit_logs = audit_logs.filter(
+            timestamp__date__lte=date_to
+        )
+
+    actions = AuditLog.objects.order_by().values_list(
+        'action_type',
+        flat=True,
+    ).distinct()
+
+    paginator = Paginator(audit_logs, 20)
+    page_obj = paginator.get_page(
+        request.GET.get('page')
+    )
+
+    return render(
+        request,
+        'verifications/audit_log_list.html',
+        {
+            'audit_logs': page_obj,
+            'page_obj': page_obj,
+            'audit_count': paginator.count,
+            'actions': actions,
+            'search_query': search_query,
+            'selected_action': selected_action,
+            'date_from': date_from_value,
+            'date_to': date_to_value,
+            'active_page': 'audit_logs',
+        },
+    )
+
 
 @user_passes_test(is_admin_user, login_url='accounts:login')
 def report_detail(request, pk):
     report = get_object_or_404(
         VerificationReport.objects.select_related(
-            'project', 'inspector__user', 'reviewed_by'
-        ).prefetch_related('images'),
+            'project',
+            'inspector__user',
+            'reviewed_by',
+            'resubmission_of',
+        ).prefetch_related(
+            'images__blockchain_record',
+            'resubmissions',
+        ),
         pk=pk,
     )
+
     return render(
         request,
         'verifications/report_detail.html',
@@ -120,7 +279,6 @@ def report_detail(request, pk):
             'active_page': 'pending_reports',
         },
     )
-
 
 @user_passes_test(is_admin_user, login_url='accounts:login')
 @transaction.atomic

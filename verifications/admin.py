@@ -13,7 +13,10 @@ class InspectionImageInline(admin.TabularInline):
 
 @admin.register(VerificationReport)
 class VerificationReportAdmin(admin.ModelAdmin):
-    list_display = ('project', 'inspector', 'progress_percentage', 'status', 'submitted_at', 'reviewed_by')
+    list_display = (
+        'project', 'inspector', 'progress_percentage', 'status',
+        'submitted_at', 'reviewed_by', 'resubmission_of',
+    )
     list_filter = ('status',)
     search_fields = ('project__project_name', 'inspector__employee_id', 'accomplishment_description')
     readonly_fields = ('submitted_at',)

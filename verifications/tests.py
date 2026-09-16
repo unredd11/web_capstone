@@ -27,6 +27,7 @@ class VerificationSchemaTests(SimpleTestCase):
             'reviewed_by',
             'reviewed_at',
             'review_notes',
+            'resubmission_of',
         }.issubset(field_names))
 
     def test_inspection_image_contains_authentication_metadata(self):
@@ -110,6 +111,55 @@ class VerificationWorkflowTests(TestCase):
 
         self.assertEqual(response.status_code, 302)
         self.assertIn(reverse('accounts:login'), response.url)
+
+    def test_report_history_filters_by_status_project_and_inspector(self):
+        VerificationReport.objects.create(
+            project=self.project,
+            inspector=self.inspector,
+            progress_percentage=Decimal('30.00'),
+            accomplishment_description='Already reviewed report.',
+            status='Approved',
+        )
+        self.client.force_login(self.admin)
+
+        response = self.client.get(
+            reverse('verifications:report_history'),
+            {
+                'status': 'Pending',
+                'project': str(self.project.pk),
+                'inspector': str(self.inspector.pk),
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        reports = list(response.context['reports'])
+        self.assertEqual(reports, [self.report])
+
+    def test_audit_log_page_filters_actions(self):
+        matching_log = AuditLog.objects.create(
+            user=self.admin,
+            action_type='approved',
+            target_entity='VerificationReport',
+            target_id=self.report.pk,
+        )
+        AuditLog.objects.create(
+            user=self.admin,
+            action_type='mobile_login',
+            target_entity='Inspector',
+            target_id=self.inspector.pk,
+        )
+        self.client.force_login(self.admin)
+
+        response = self.client.get(
+            reverse('verifications:audit_log_list'),
+            {'action': 'approved'},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            list(response.context['audit_logs']),
+            [matching_log],
+        )
 
     def test_upload_generates_hashes_geofence_and_audit_log(self):
         self.client.force_login(self.admin)
@@ -292,6 +342,88 @@ class VerificationWorkflowTests(TestCase):
                 target_id=submitted_report.pk,
             ).exists()
         )
+
+    def test_mobile_can_replace_one_rejected_report(self):
+        self.report.status = 'Rejected'
+        self.report.reviewed_by = self.admin
+        self.report.reviewed_at = timezone.now()
+        self.report.review_notes = 'Please capture clearer evidence.'
+        self.report.save(
+            update_fields=[
+                'status',
+                'reviewed_by',
+                'reviewed_at',
+                'review_notes',
+            ]
+        )
+        login_response = self.client.post(
+            reverse('verifications:mobile_login'),
+            data=json.dumps(
+                {
+                    'username': 'inspector@example.com',
+                    'password': 'test-password',
+                }
+            ),
+            content_type='application/json',
+        )
+        token = login_response.json()['token']
+
+        response = self.client.post(
+            reverse('verifications:mobile_submit_report'),
+            {
+                'project_id': str(self.project.pk),
+                'resubmission_of': str(self.report.pk),
+                'progress_percentage': '30.00',
+                'accomplishment_description': 'Corrected evidence.',
+                'image_file': self.create_test_image(),
+                'latitude': '8.2280000',
+                'longitude': '124.2452000',
+                'altitude': '20.00',
+                'gps_accuracy': '5.00',
+                'captured_at': timezone.now().isoformat(),
+            },
+            HTTP_AUTHORIZATION=f'Bearer {token}',
+        )
+
+        self.assertEqual(response.status_code, 201)
+        replacement = VerificationReport.objects.get(
+            accomplishment_description='Corrected evidence.'
+        )
+        self.assertEqual(replacement.resubmission_of, self.report)
+        self.assertEqual(replacement.status, 'Pending')
+        self.assertTrue(
+            AuditLog.objects.filter(
+                action_type='mobile_report_resubmission',
+                target_id=replacement.pk,
+            ).exists()
+        )
+
+    def test_mobile_cannot_replace_a_report_that_is_not_rejected(self):
+        login_response = self.client.post(
+            reverse('verifications:mobile_login'),
+            data=json.dumps(
+                {
+                    'username': 'inspector@example.com',
+                    'password': 'test-password',
+                }
+            ),
+            content_type='application/json',
+        )
+        token = login_response.json()['token']
+
+        response = self.client.post(
+            reverse('verifications:mobile_submit_report'),
+            {
+                'project_id': str(self.project.pk),
+                'resubmission_of': str(self.report.pk),
+                'progress_percentage': '30.00',
+                'accomplishment_description': 'Invalid replacement.',
+            },
+            HTTP_AUTHORIZATION=f'Bearer {token}',
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('rejected', response.json()['message'].lower())
 
     def test_previous_inspector_cannot_access_reassigned_project(self):
         replacement_user = User.objects.create_user(

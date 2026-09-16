@@ -41,6 +41,11 @@ urlpatterns = [
         name='report_history',
     ),
     path(
+        'audit/',
+        views.audit_log_list,
+        name='audit_log_list',
+    ),
+    path(
         '<int:pk>/',
         views.report_detail,
         name='report_detail',

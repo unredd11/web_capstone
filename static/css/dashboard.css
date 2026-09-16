@@ -712,6 +712,7 @@ a {
 #project-map {
     width: 100%;
     height: 330px;
+    border-radius: 8px;
     background: #eef2f7;
 }
 

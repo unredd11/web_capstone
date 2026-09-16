@@ -27,6 +27,7 @@ from .services import (
 
 def serialize_mobile_report(request, report):
     image_data = []
+    resubmissions = list(report.resubmissions.all())
 
     for image in report.images.all():
         blockchain_record = getattr(
@@ -100,6 +101,12 @@ def serialize_mobile_report(request, report):
             report.reviewed_by.get_full_name()
             or report.reviewed_by.username
             if report.reviewed_by
+            else None
+        ),
+        'resubmission_of': report.resubmission_of_id,
+        'resubmitted_as': (
+            resubmissions[0].pk
+            if resubmissions
             else None
         ),
         'images': image_data,
@@ -334,6 +341,10 @@ def mobile_submit_report(request):
         'accomplishment_description',
         '',
     ).strip()
+    resubmission_id = request.POST.get(
+        'resubmission_of',
+        '',
+    ).strip()
 
     if not project_id:
         return api_error('project_id is required.')
@@ -378,6 +389,42 @@ def mobile_submit_report(request):
         return api_error(
             'accomplishment_description is required.'
         )
+
+    resubmission_of = None
+
+    if resubmission_id:
+        try:
+            resubmission_id = int(resubmission_id)
+        except (TypeError, ValueError):
+            return api_error(
+                'resubmission_of must be a report number.'
+            )
+
+        resubmission_of = VerificationReport.objects.filter(
+            pk=resubmission_id,
+            inspector=request.inspector,
+        ).first()
+
+        if resubmission_of is None:
+            return api_error(
+                'The original report does not exist or does not belong to you.',
+                status=404,
+            )
+
+        if resubmission_of.status != 'Rejected':
+            return api_error(
+                'Only a rejected report can be resubmitted.'
+            )
+
+        if resubmission_of.project_id != project.pk:
+            return api_error(
+                'The resubmission must use the same project as the rejected report.'
+            )
+
+        if resubmission_of.resubmissions.exists():
+            return api_error(
+                'This rejected report already has a replacement submission.'
+            )
 
     image_form = InspectionImageForm(
         request.POST,
@@ -424,6 +471,7 @@ def mobile_submit_report(request):
                 accomplishment_description
             ),
             status='Pending',
+            resubmission_of=resubmission_of,
         )
 
         inspection_image.report = report
@@ -472,7 +520,11 @@ def mobile_submit_report(request):
         record_audit_event(
             request=request,
             user=request.api_user,
-            action_type='mobile_report_submission',
+            action_type=(
+                'mobile_report_resubmission'
+                if resubmission_of
+                else 'mobile_report_submission'
+            ),
             target_entity='VerificationReport',
             target_id=report.pk,
         )
@@ -495,6 +547,7 @@ def mobile_submit_report(request):
                 'progress_percentage': str(
                     report.progress_percentage
                 ),
+                'resubmission_of': report.resubmission_of_id,
             },
             'image': {
                 'id': inspection_image.pk,
@@ -527,8 +580,10 @@ def mobile_report_history(request):
     ).select_related(
         'project',
         'reviewed_by',
+        'resubmission_of',
     ).prefetch_related(
         'images__blockchain_record',
+        'resubmissions',
     )
 
     selected_status = request.GET.get(
@@ -574,8 +629,10 @@ def mobile_report_detail(request, report_id):
     ).select_related(
         'project',
         'reviewed_by',
+        'resubmission_of',
     ).prefetch_related(
         'images__blockchain_record',
+        'resubmissions',
     ).first()
 
     if report is None:

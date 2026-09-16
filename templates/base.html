@@ -79,7 +79,13 @@
                 </a>
             </li>
             <li>
-                <a href="#" class="{% if active_page == 'audit_logs' %}active{% endif %}">
+                <a href="{% url 'verifications:report_history' %}" class="{% if active_page == 'report_history' %}active{% endif %}">
+                    <span class="nav-icon"><i class="bi bi-card-list"></i></span>
+                    Report History
+                </a>
+            </li>
+            <li>
+                <a href="{% url 'verifications:audit_log_list' %}" class="{% if active_page == 'audit_logs' %}active{% endif %}">
                     <span class="nav-icon"><i class="bi bi-journal-text"></i></span>
                     Audit Logs
                 </a>

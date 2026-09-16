@@ -28,6 +28,14 @@ class VerificationReport(models.Model):
     )
     reviewed_at = models.DateTimeField(null=True, blank=True)
     review_notes = models.TextField(blank=True)
+    resubmission_of = models.ForeignKey(
+        'self',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='resubmissions',
+        help_text='Rejected report that this report replaces.',
+    )
 
     def __str__(self):
         return f"{self.project} — {self.status}"
