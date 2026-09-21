@@ -79,6 +79,21 @@
         <p><strong>SHA-256:</strong> {{ image.sha256_hash }}</p>
         <p><strong>pHash:</strong> {{ image.perceptual_hash }}</p>
 
+        {% with receipt=image.blockchain_record %}
+        <p>
+            <strong>Blockchain receipt:</strong>
+            <span class="badge {% if receipt.commit_status == 'Committed' %}bg-success{% elif receipt.commit_status == 'Failed' %}bg-danger{% else %}bg-warning text-dark{% endif %}">
+                {{ receipt.commit_status }}
+            </span>
+        </p>
+        {% if receipt.transaction_id %}
+        <p><strong>Transaction ID:</strong> {{ receipt.transaction_id }}</p>
+        {% endif %}
+        {% if receipt.block_number != None %}
+        <p><strong>Block number:</strong> {{ receipt.block_number }}</p>
+        {% endif %}
+        {% endwith %}
+
         <p>
             <strong>Captured location:</strong>
             {{ image.latitude }}, {{ image.longitude }}
@@ -113,6 +128,21 @@
     </div>
 
     <div class="card-body-custom">
+        {% if approval_blockers %}
+        <div class="alert alert-warning">
+            <strong>This report is not ready for approval:</strong>
+            <ul class="mb-0 mt-2">
+                {% for blocker in approval_blockers %}
+                <li>{{ blocker }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% else %}
+        <div class="alert alert-success">
+            The image evidence, hashes, and geofence checks are ready for review.
+        </div>
+        {% endif %}
+
         <form
             method="post"
             enctype="multipart/form-data"
@@ -183,6 +213,7 @@
                 name="decision"
                 value="Approved"
                 class="btn btn-success"
+                {% if approval_blockers %}disabled{% endif %}
             >
                 <i class="bi bi-check-circle me-1"></i>
                 Approve

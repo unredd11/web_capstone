@@ -129,17 +129,37 @@
                 </div>
             </div>
             <div class="navbar-right">
-                <div class="navbar-search">
+                <form
+                    method="get"
+                    action="{% url 'verifications:report_history' %}"
+                    class="navbar-search"
+                >
                     <i class="bi bi-search search-icon"></i>
-                    <input type="text" placeholder="Search projects, inspectors, reports...">
-                </div>
-                <button class="navbar-icon-btn">
+                    <input
+                        type="search"
+                        name="q"
+                        value="{{ request.GET.q|default:'' }}"
+                        placeholder="Search inspection reports..."
+                        aria-label="Search inspection reports"
+                    >
+                </form>
+                <a
+                    href="{% url 'verifications:pending' %}"
+                    class="navbar-icon-btn text-decoration-none"
+                    title="Pending reports"
+                    aria-label="Pending reports"
+                >
                     <i class="bi bi-bell"></i>
-                    <span class="notif-dot"></span>
-                </button>
-                <button class="navbar-icon-btn">
-                    <i class="bi bi-chat-dots"></i>
-                </button>
+                    {% if pending_reports %}<span class="notif-dot"></span>{% endif %}
+                </a>
+                <a
+                    href="{% url 'verifications:audit_log_list' %}"
+                    class="navbar-icon-btn text-decoration-none"
+                    title="Audit logs"
+                    aria-label="Audit logs"
+                >
+                    <i class="bi bi-journal-text"></i>
+                </a>
             </div>
         </nav>
 

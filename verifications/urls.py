@@ -41,9 +41,19 @@ urlpatterns = [
         name='report_history',
     ),
     path(
+        'history/export/',
+        views.export_reports_csv,
+        name='export_reports_csv',
+    ),
+    path(
         'audit/',
         views.audit_log_list,
         name='audit_log_list',
+    ),
+    path(
+        'audit/export/',
+        views.export_audit_logs_csv,
+        name='export_audit_logs_csv',
     ),
     path(
         '<int:pk>/',

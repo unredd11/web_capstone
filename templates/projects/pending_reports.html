@@ -9,7 +9,7 @@
     <div class="card-header-custom d-flex justify-content-between align-items-center">
         <div>
             <h6 class="mb-0 d-inline-block"><i class="bi bi-clock-history me-2"></i>Reports Awaiting Review</h6>
-            <span class="badge bg-warning text-dark ms-2">{{ reports.count }} pending</span>
+            <span class="badge bg-warning text-dark ms-2">{{ pending_count }} pending</span>
         </div>
 
         <a
@@ -71,4 +71,24 @@
         </div>
     </div>
 </div>
+
+{% if page_obj.paginator.num_pages > 1 %}
+<nav class="p-3" aria-label="Pending report pages">
+    <ul class="pagination justify-content-center mb-0">
+        {% if page_obj.has_previous %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a>
+        </li>
+        {% endif %}
+        <li class="page-item disabled">
+            <span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+        </li>
+        {% if page_obj.has_next %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
 {% endblock %}

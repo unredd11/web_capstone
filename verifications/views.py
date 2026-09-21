@@ -1,5 +1,8 @@
+import csv
+
 from django.contrib import messages
 from django.contrib.auth.decorators import user_passes_test
+from django.http import HttpResponse
 from django.db import transaction
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
@@ -29,15 +32,107 @@ def is_admin_user(user):
     return user.is_authenticated and (user.is_staff or user.is_superuser)
 
 
+def apply_report_filters(reports, request):
+    values = {
+        'search_query': request.GET.get('q', '').strip(),
+        'selected_status': request.GET.get('status', '').strip(),
+        'selected_project': request.GET.get('project', '').strip(),
+        'selected_inspector': request.GET.get('inspector', '').strip(),
+        'date_from': request.GET.get('date_from', '').strip(),
+        'date_to': request.GET.get('date_to', '').strip(),
+    }
+
+    if values['search_query']:
+        query = values['search_query']
+        reports = reports.filter(
+            Q(project__project_name__icontains=query)
+            | Q(inspector__employee_id__icontains=query)
+            | Q(inspector__user__first_name__icontains=query)
+            | Q(inspector__user__last_name__icontains=query)
+            | Q(accomplishment_description__icontains=query)
+        )
+
+    if values['selected_status'] in {'Pending', 'Approved', 'Rejected'}:
+        reports = reports.filter(status=values['selected_status'])
+
+    if values['selected_project'].isdigit():
+        reports = reports.filter(project_id=int(values['selected_project']))
+
+    if values['selected_inspector'].isdigit():
+        reports = reports.filter(inspector_id=int(values['selected_inspector']))
+
+    date_from = parse_date(values['date_from'])
+    date_to = parse_date(values['date_to'])
+    values['filter_error'] = ''
+
+    if date_from and date_to and date_from > date_to:
+        values['filter_error'] = 'The start date cannot be later than the end date.'
+    else:
+        if date_from:
+            reports = reports.filter(submitted_at__date__gte=date_from)
+        if date_to:
+            reports = reports.filter(submitted_at__date__lte=date_to)
+
+    return reports, values
+
+
+def apply_audit_filters(audit_logs, request):
+    values = {
+        'search_query': request.GET.get('q', '').strip(),
+        'selected_action': request.GET.get('action', '').strip(),
+        'date_from': request.GET.get('date_from', '').strip(),
+        'date_to': request.GET.get('date_to', '').strip(),
+    }
+
+    if values['search_query']:
+        query = values['search_query']
+        search_filter = (
+            Q(user__username__icontains=query)
+            | Q(user__first_name__icontains=query)
+            | Q(user__last_name__icontains=query)
+            | Q(action_type__icontains=query)
+            | Q(target_entity__icontains=query)
+            | Q(device_info__icontains=query)
+            | Q(ip_address__icontains=query)
+        )
+        if query.isdigit():
+            search_filter |= Q(target_id=int(query))
+        audit_logs = audit_logs.filter(search_filter)
+
+    if values['selected_action']:
+        audit_logs = audit_logs.filter(action_type=values['selected_action'])
+
+    date_from = parse_date(values['date_from'])
+    date_to = parse_date(values['date_to'])
+    values['filter_error'] = ''
+
+    if date_from and date_to and date_from > date_to:
+        values['filter_error'] = 'The start date cannot be later than the end date.'
+    else:
+        if date_from:
+            audit_logs = audit_logs.filter(timestamp__date__gte=date_from)
+        if date_to:
+            audit_logs = audit_logs.filter(timestamp__date__lte=date_to)
+
+    return audit_logs, values
+
+
 @user_passes_test(is_admin_user, login_url='accounts:login')
 def pending_reports(request):
     reports = VerificationReport.objects.filter(status='Pending').select_related(
         'project', 'inspector__user'
     ).prefetch_related('images')
+    paginator = Paginator(reports, 10)
+    page_obj = paginator.get_page(request.GET.get('page'))
     return render(
         request,
         'projects/pending_reports.html',
-        {'reports': reports, 'active_page': 'pending_reports'},
+        {
+            'reports': page_obj,
+            'page_obj': page_obj,
+            'pending_count': paginator.count,
+            'active_page': 'pending_reports',
+        },
     )
 
 @user_passes_test(
@@ -119,16 +214,20 @@ def report_history(request):
 
     date_from = parse_date(date_from_value)
     date_to = parse_date(date_to_value)
+    filter_error = ''
 
-    if date_from:
-        reports = reports.filter(
-            submitted_at__date__gte=date_from
-        )
+    if date_from and date_to and date_from > date_to:
+        filter_error = 'The start date cannot be later than the end date.'
+    else:
+        if date_from:
+            reports = reports.filter(
+                submitted_at__date__gte=date_from
+            )
 
-    if date_to:
-        reports = reports.filter(
-            submitted_at__date__lte=date_to
-        )
+        if date_to:
+            reports = reports.filter(
+                submitted_at__date__lte=date_to
+            )
 
     paginator = Paginator(reports, 10)
     page_obj = paginator.get_page(
@@ -157,9 +256,70 @@ def report_history(request):
             'selected_inspector': selected_inspector,
             'date_from': date_from_value,
             'date_to': date_to_value,
+            'filter_error': filter_error,
             'active_page': 'report_history',
         },
     )
+
+
+@user_passes_test(is_admin_user, login_url='accounts:login')
+def export_reports_csv(request):
+    reports = VerificationReport.objects.select_related(
+        'project',
+        'inspector__user',
+        'reviewed_by',
+    )
+    reports, _ = apply_report_filters(reports, request)
+
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = (
+        'attachment; filename="inspection-reports.csv"'
+    )
+    writer = csv.writer(response)
+    writer.writerow([
+        'Report ID',
+        'Project',
+        'Inspector ID',
+        'Inspector',
+        'Progress Percentage',
+        'Accomplishment Description',
+        'Status',
+        'Submitted At',
+        'Reviewed By',
+        'Reviewed At',
+        'Review Notes',
+    ])
+
+    for report in reports:
+        writer.writerow([
+            report.pk,
+            report.project.project_name,
+            report.inspector.employee_id,
+            report.inspector.user.get_full_name(),
+            report.progress_percentage,
+            report.accomplishment_description,
+            report.status,
+            timezone.localtime(report.submitted_at).isoformat(),
+            (
+                report.reviewed_by.get_full_name()
+                or report.reviewed_by.username
+                if report.reviewed_by
+                else ''
+            ),
+            (
+                timezone.localtime(report.reviewed_at).isoformat()
+                if report.reviewed_at
+                else ''
+            ),
+            report.review_notes,
+        ])
+
+    record_audit_event(
+        request=request,
+        action_type='export_reports',
+        target_entity='VerificationReport',
+    )
+    return response
 
 @user_passes_test(
     is_admin_user,
@@ -208,7 +368,19 @@ def audit_log_list(request):
             | Q(
                 device_info__icontains=search_query
             )
+            | Q(
+                ip_address__icontains=search_query
+            )
         )
+
+        if search_query.isdigit():
+            audit_logs = audit_logs.filter(
+                Q(target_id=int(search_query))
+                | Q(action_type__icontains=search_query)
+                | Q(target_entity__icontains=search_query)
+                | Q(device_info__icontains=search_query)
+                | Q(ip_address__icontains=search_query)
+            )
 
     if selected_action:
         audit_logs = audit_logs.filter(
@@ -217,16 +389,20 @@ def audit_log_list(request):
 
     date_from = parse_date(date_from_value)
     date_to = parse_date(date_to_value)
+    filter_error = ''
 
-    if date_from:
-        audit_logs = audit_logs.filter(
-            timestamp__date__gte=date_from
-        )
+    if date_from and date_to and date_from > date_to:
+        filter_error = 'The start date cannot be later than the end date.'
+    else:
+        if date_from:
+            audit_logs = audit_logs.filter(
+                timestamp__date__gte=date_from
+            )
 
-    if date_to:
-        audit_logs = audit_logs.filter(
-            timestamp__date__lte=date_to
-        )
+        if date_to:
+            audit_logs = audit_logs.filter(
+                timestamp__date__lte=date_to
+            )
 
     actions = AuditLog.objects.order_by().values_list(
         'action_type',
@@ -250,9 +426,54 @@ def audit_log_list(request):
             'selected_action': selected_action,
             'date_from': date_from_value,
             'date_to': date_to_value,
+            'filter_error': filter_error,
             'active_page': 'audit_logs',
         },
     )
+
+
+@user_passes_test(is_admin_user, login_url='accounts:login')
+def export_audit_logs_csv(request):
+    audit_logs = AuditLog.objects.select_related('user')
+    audit_logs, _ = apply_audit_filters(audit_logs, request)
+
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = (
+        'attachment; filename="system-audit-logs.csv"'
+    )
+    writer = csv.writer(response)
+    writer.writerow([
+        'Timestamp',
+        'User',
+        'Action',
+        'Target Entity',
+        'Target ID',
+        'IP Address',
+        'Device',
+    ])
+
+    for event in audit_logs:
+        writer.writerow([
+            timezone.localtime(event.timestamp).isoformat(),
+            (
+                event.user.get_full_name()
+                or event.user.username
+                if event.user
+                else 'System'
+            ),
+            event.action_type,
+            event.target_entity,
+            event.target_id or '',
+            event.ip_address or '',
+            event.device_info,
+        ])
+
+    record_audit_event(
+        request=request,
+        action_type='export_audit_logs',
+        target_entity='AuditLog',
+    )
+    return response
 
 
 @user_passes_test(is_admin_user, login_url='accounts:login')
@@ -269,6 +490,25 @@ def report_detail(request, pk):
         ),
         pk=pk,
     )
+    images = list(report.images.all())
+    approval_blockers = []
+
+    if report.status == 'Pending':
+        if not images:
+            approval_blockers.append(
+                'At least one inspection image is required.'
+            )
+        if any(image.geofence_status != 'Inside' for image in images):
+            approval_blockers.append(
+                'Every inspection image must be inside the project geofence.'
+            )
+        if any(
+            not image.sha256_hash or not image.perceptual_hash
+            for image in images
+        ):
+            approval_blockers.append(
+                'Every inspection image must have SHA-256 and perceptual hashes.'
+            )
 
     return render(
         request,
@@ -276,6 +516,7 @@ def report_detail(request, pk):
         {
             'report': report,
             'image_form': InspectionImageForm(),
+            'approval_blockers': approval_blockers,
             'active_page': 'pending_reports',
         },
     )
@@ -379,13 +620,11 @@ def upload_inspection_image(request, pk):
     report.longitude = image.longitude
     report.save(update_fields=['image_hash', 'latitude', 'longitude'])
 
-    AuditLog.objects.create(
-        user=request.user,
+    record_audit_event(
+        request=request,
         action_type='upload_image',
         target_entity='InspectionImage',
         target_id=image.pk,
-        ip_address=request.META.get('REMOTE_ADDR'),
-        device_info=request.META.get('HTTP_USER_AGENT', '')[:255],
     )
 
     messages.success(
@@ -428,6 +667,18 @@ def review_report(request, pk):
         and report.images.exclude(geofence_status='Inside').exists()
     ):
         messages.error(request, 'A report cannot be approved unless all images are inside the geofence.')
+        return redirect('verifications:report_detail', pk=report.pk)
+
+    if (
+        form.cleaned_data['decision'] == 'Approved'
+        and report.images.filter(
+            Q(sha256_hash='') | Q(perceptual_hash='')
+        ).exists()
+    ):
+        messages.error(
+            request,
+            'A report cannot be approved until every image has valid hashes.',
+        )
         return redirect('verifications:report_detail', pk=report.pk)
 
     report.status = form.cleaned_data['decision']

@@ -120,10 +120,24 @@
     </div>
 </div>
 
+{% if filter_error %}
+<div class="alert alert-danger" role="alert">
+    {{ filter_error }}
+</div>
+{% endif %}
+
 <div class="dash-card">
     <div class="card-header-custom">
         <h6>All Inspection Reports</h6>
-        <span>{{ report_count }} records</span>
+        <div class="d-flex align-items-center gap-2">
+            <span>{{ report_count }} records</span>
+            <a
+                href="{% url 'verifications:export_reports_csv' %}?{{ request.GET.urlencode }}"
+                class="btn btn-sm btn-outline-success"
+            >
+                <i class="bi bi-download me-1"></i>Export CSV
+            </a>
+        </div>
     </div>
 
     <div class="card-body-custom p-0">

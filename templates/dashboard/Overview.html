@@ -17,42 +17,42 @@
 
 <div class="row g-4 mb-4">
     <div class="col-xl-3 col-md-6">
-        <div class="stat-card">
+        <a href="{% url 'projects:project_list' %}" class="stat-card d-block text-decoration-none">
             <div class="stat-label">Active Projects</div>
             <div class="stat-value">{{ active_projects }}</div>
             <div class="stat-trend {% if active_projects_growth < 0 %}down{% else %}up{% endif %}">
                 <i class="bi {% if active_projects_growth < 0 %}bi-arrow-down{% else %}bi-arrow-up{% endif %}"></i>
                 {{ active_projects_growth }}% this month
             </div>
-        </div>
+        </a>
     </div>
     <div class="col-xl-3 col-md-6">
-        <div class="stat-card">
+        <a href="{% url 'accounts:inspector_list' %}" class="stat-card d-block text-decoration-none">
             <div class="stat-label">Registered Inspectors</div>
             <div class="stat-value">{{ registered_inspectors }}</div>
             <div class="stat-trend up">
                 <i class="bi bi-arrow-up"></i> {{ inspectors_this_week }} new this week
             </div>
-        </div>
+        </a>
     </div>
     <div class="col-xl-3 col-md-6">
-        <div class="stat-card">
+        <a href="{% url 'verifications:pending' %}" class="stat-card d-block text-decoration-none">
             <div class="stat-label">Pending Reports</div>
             <div class="stat-value">{{ pending_reports }}</div>
             <div class="stat-trend {% if pending_reports %}down{% else %}up{% endif %}">
                 <i class="bi {% if pending_reports %}bi-hourglass-split{% else %}bi-check-circle{% endif %}"></i>
                 {% if pending_reports %}awaiting review{% else %}all reports reviewed{% endif %}
             </div>
-        </div>
+        </a>
     </div>
     <div class="col-xl-3 col-md-6">
-        <div class="stat-card">
+        <a href="{% url 'verifications:report_history' %}" class="stat-card d-block text-decoration-none">
             <div class="stat-label">Blockchain Verified</div>
             <div class="stat-value">{{ blockchain_verified }}</div>
             <div class="stat-trend up">
                 <i class="bi bi-shield-check"></i> {{ blockchain_pass_rate }}% pass rate
             </div>
-        </div>
+        </a>
     </div>
 </div>
 

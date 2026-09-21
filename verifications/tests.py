@@ -161,6 +161,58 @@ class VerificationWorkflowTests(TestCase):
             [matching_log],
         )
 
+    def test_report_export_uses_the_current_filters_and_creates_an_audit_log(self):
+        VerificationReport.objects.create(
+            project=self.project,
+            inspector=self.inspector,
+            progress_percentage=Decimal('30.00'),
+            accomplishment_description='Approved report.',
+            status='Approved',
+        )
+        self.client.force_login(self.admin)
+
+        response = self.client.get(
+            reverse('verifications:export_reports_csv'),
+            {'status': 'Pending'},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('text/csv', response['Content-Type'])
+        self.assertIn(
+            'Initial site work completed.',
+            response.content.decode(),
+        )
+        self.assertNotIn('Approved report.', response.content.decode())
+        self.assertTrue(
+            AuditLog.objects.filter(
+                action_type='export_reports',
+                target_entity='VerificationReport',
+            ).exists()
+        )
+
+    def test_audit_export_creates_a_download_and_audit_event(self):
+        AuditLog.objects.create(
+            user=self.admin,
+            action_type='admin_login',
+            target_entity='User',
+            target_id=self.admin.pk,
+        )
+        self.client.force_login(self.admin)
+
+        response = self.client.get(
+            reverse('verifications:export_audit_logs_csv'),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('text/csv', response['Content-Type'])
+        self.assertIn('admin_login', response.content.decode())
+        self.assertTrue(
+            AuditLog.objects.filter(
+                action_type='export_audit_logs',
+                target_entity='AuditLog',
+            ).exists()
+        )
+
     def test_upload_generates_hashes_geofence_and_audit_log(self):
         self.client.force_login(self.admin)
         response = self.client.post(
@@ -219,6 +271,30 @@ class VerificationWorkflowTests(TestCase):
 
     def test_approval_is_blocked_without_an_image(self):
         self.client.force_login(self.admin)
+        self.client.post(
+            reverse('verifications:review_report', args=[self.report.pk]),
+            {'decision': 'Approved', 'review_notes': ''},
+        )
+
+        self.report.refresh_from_db()
+        self.assertEqual(self.report.status, 'Pending')
+
+    def test_approval_is_blocked_when_an_image_has_no_hashes(self):
+        InspectionImage.objects.create(
+            report=self.report,
+            image_file=self.create_test_image(),
+            sha256_hash='',
+            perceptual_hash='',
+            latitude=Decimal('8.2280000'),
+            longitude=Decimal('124.2452000'),
+            captured_at=timezone.now(),
+            geofence_distance=Decimal('0.00'),
+            geofence_status='Inside',
+            file_size=100,
+            mime_type='image/png',
+        )
+        self.client.force_login(self.admin)
+
         self.client.post(
             reverse('verifications:review_report', args=[self.report.pk]),
             {'decision': 'Approved', 'review_notes': ''},
