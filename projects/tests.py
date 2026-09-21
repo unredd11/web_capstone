@@ -5,6 +5,7 @@ from django.urls import reverse
 from accounts.models import Inspector
 from verifications.models import AuditLog
 
+from .forms import AssignInspectorForm, ProjectForm
 from .models import Project
 
 
@@ -69,3 +70,73 @@ class ProjectAuditTests(TestCase):
                 target_id=self.project.pk,
             ).exists()
         )
+
+    def test_project_form_rejects_incomplete_coordinates(self):
+        form = ProjectForm(
+            data={
+                'project_name': 'Invalid Coordinates',
+                'district': 'LDN 1st DEO',
+                'latitude': '8.2280000',
+                'longitude': '',
+                'geofence_radius': '100',
+                'budget': '1000000',
+                'progress_percentage': '0',
+                'status': 'Pending',
+            }
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn(
+            'Latitude and longitude must be provided together.',
+            form.non_field_errors(),
+        )
+
+    def test_project_form_rejects_invalid_dates_and_district(self):
+        other_user = User.objects.create_user(
+            username='other@example.com',
+        )
+        other_inspector = Inspector.objects.create(
+            user=other_user,
+            employee_id='DPWH-PROJECT-002',
+            district='LDN 2nd DEO',
+        )
+        form = ProjectForm(
+            data={
+                'project_name': 'Invalid Assignment',
+                'district': 'LDN 1st DEO',
+                'assigned_inspector': str(other_inspector.pk),
+                'latitude': '8.2280000',
+                'longitude': '124.2452000',
+                'geofence_radius': '100',
+                'budget': '1000000',
+                'progress_percentage': '0',
+                'start_date': '2026-09-20',
+                'end_date': '2026-09-19',
+                'status': 'Pending',
+            }
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn('end_date', form.errors)
+        self.assertIn('assigned_inspector', form.errors)
+
+    def test_assignment_form_lists_only_active_same_district_inspectors(self):
+        other_user = User.objects.create_user(
+            username='different-district@example.com',
+        )
+        other_inspector = Inspector.objects.create(
+            user=other_user,
+            employee_id='DPWH-PROJECT-003',
+            district='LDN 2nd DEO',
+        )
+
+        form = AssignInspectorForm(project=self.project)
+        inspector_ids = set(
+            form.fields['inspector'].queryset.values_list(
+                'pk',
+                flat=True,
+            )
+        )
+
+        self.assertIn(self.inspector.pk, inspector_ids)
+        self.assertNotIn(other_inspector.pk, inspector_ids)

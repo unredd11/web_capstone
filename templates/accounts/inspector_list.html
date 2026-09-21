@@ -44,9 +44,16 @@
                         </td>
                         <td>{{ inspector.date_registered|date:"M d, Y" }}</td>
                         <td>
+                            <a
+                                href="{% url 'accounts:edit_inspector' inspector.pk %}"
+                                class="btn btn-sm btn-outline-primary me-1"
+                            >
+                                Edit
+                            </a>
                             <form
                                 method="post"
                                 action="{% url 'accounts:toggle_inspector_status' inspector.pk %}"
+                                class="d-inline"
                             >
                                 {% csrf_token %}
 

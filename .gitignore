@@ -1,5 +1,13 @@
 __pycache__/
 *.py[cod]
 .env
+.env.*
+!.env.example
 venv/
 .venv/
+media/
+staticfiles/
+tmp/
+*.sqlite3
+*.sql
+26.2

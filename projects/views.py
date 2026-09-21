@@ -87,7 +87,10 @@ def assign_inspector(request, pk):
     project = get_object_or_404(Project, pk=pk)
     assignments = ProjectAssignment.objects.filter(project=project).select_related('inspector__user')
     if request.method == 'POST':
-        form = AssignInspectorForm(request.POST)
+        form = AssignInspectorForm(
+            request.POST,
+            project=project,
+        )
         if form.is_valid():
             inspector = form.cleaned_data['inspector']
             previous_inspector_id = project.assigned_inspector_id
@@ -114,7 +117,7 @@ def assign_inspector(request, pk):
                 messages.success(request, f'{inspector} assigned to {project.project_name}!')
             return redirect('projects:assign_inspector', pk=pk)
     else:
-        form = AssignInspectorForm()
+        form = AssignInspectorForm(project=project)
     return render(request, 'projects/assign_inspector.html', {
         'form': form, 'project': project, 'assignments': assignments, 'active_page': 'project_list'
     })

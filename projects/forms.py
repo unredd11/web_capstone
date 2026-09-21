@@ -33,13 +33,96 @@ class ProjectForm(forms.ModelForm):
             'status': forms.Select(attrs={'class': 'form-select'}),
         }
 
+    def clean(self):
+        cleaned_data = super().clean()
+
+        latitude = cleaned_data.get('latitude')
+        longitude = cleaned_data.get('longitude')
+        radius = cleaned_data.get('geofence_radius')
+        budget = cleaned_data.get('budget')
+        progress = cleaned_data.get('progress_percentage')
+        start_date = cleaned_data.get('start_date')
+        end_date = cleaned_data.get('end_date')
+        inspector = cleaned_data.get('assigned_inspector')
+        district = cleaned_data.get('district')
+
+        if (latitude is None) != (longitude is None):
+            raise forms.ValidationError(
+                'Latitude and longitude must be provided together.'
+            )
+
+        if latitude is not None and not -90 <= latitude <= 90:
+            self.add_error(
+                'latitude',
+                'Latitude must be between -90 and 90.',
+            )
+
+        if longitude is not None and not -180 <= longitude <= 180:
+            self.add_error(
+                'longitude',
+                'Longitude must be between -180 and 180.',
+            )
+
+        if radius is not None and radius <= 0:
+            self.add_error(
+                'geofence_radius',
+                'Geofence radius must be greater than zero.',
+            )
+
+        if budget is not None and budget < 0:
+            self.add_error(
+                'budget',
+                'Budget cannot be negative.',
+            )
+
+        if progress is not None and not 0 <= progress <= 100:
+            self.add_error(
+                'progress_percentage',
+                'Progress must be between 0 and 100.',
+            )
+
+        if start_date and end_date and end_date < start_date:
+            self.add_error(
+                'end_date',
+                'End date cannot be earlier than the start date.',
+            )
+
+        if inspector and district and inspector.district != district:
+            self.add_error(
+                'assigned_inspector',
+                'The inspector must belong to the project district.',
+            )
+
+        return cleaned_data
+
 class AssignInspectorForm(forms.Form):
     inspector = forms.ModelChoiceField(
-        queryset=Inspector.objects.filter(is_active=True),
+        queryset=Inspector.objects.none(),
         widget=forms.Select(attrs={'class': 'form-select'}),
-        empty_label='Select an Inspector'
+        empty_label='Select an Inspector',
     )
     notes = forms.CharField(
         required=False,
-        widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Assignment notes...'})
+        widget=forms.Textarea(
+            attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'Assignment notes...',
+            }
+        ),
     )
+
+    def __init__(self, *args, project=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.project = project
+
+        queryset = Inspector.objects.filter(
+            is_active=True,
+        ).select_related('user')
+
+        if project:
+            queryset = queryset.filter(
+                district=project.district,
+            )
+
+        self.fields['inspector'].queryset = queryset

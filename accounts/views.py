@@ -4,11 +4,12 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import user_passes_test
 from django.contrib.auth.models import User
 from django.db import transaction
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
 from verifications.audit import record_audit_event
 
-from .forms import InspectorRegistrationForm
+from .forms import InspectorRegistrationForm, InspectorUpdateForm
 from .models import Inspector
 
 
@@ -28,6 +29,19 @@ def toggle_inspector_status(request, pk):
         Inspector.objects.select_related('user'),
         pk=pk,
     )
+
+    if (
+        inspector.is_active
+        and inspector.assigned_projects.filter(
+            status__in=['Pending', 'Ongoing']
+        ).exists()
+    ):
+        messages.error(
+            request,
+            'Reassign this inspector’s active projects before '
+            'deactivating the account.',
+        )
+        return redirect('accounts:inspector_list')
 
     new_status = not inspector.is_active
 
@@ -70,7 +84,7 @@ def admin_login(request):
         login_username = username_or_email
         if '@' in username_or_email:
             try:
-                user_obj = User.objects.get(email=username_or_email)
+                user_obj = User.objects.get(email__iexact=username_or_email)
                 login_username = user_obj.username
             except (User.DoesNotExist, User.MultipleObjectsReturned):
                 pass
@@ -80,17 +94,57 @@ def admin_login(request):
             # STRICT REQUIREMENT: Only admin accounts can log in to manage inspector accounts
             if user.is_staff or user.is_superuser:
                 login(request, user)
+                record_audit_event(
+                    request=request,
+                    user=user,
+                    action_type='admin_login',
+                    target_entity='User',
+                    target_id=user.pk,
+                )
                 messages.success(request, f"Welcome to DPWH VERIFY Admin Portal, {user.get_full_name() or user.username}!")
-                next_url = request.GET.get('next', 'dashboard:overview')
-                return redirect(next_url)
+                next_url = (
+                    request.POST.get('next')
+                    or request.GET.get('next')
+                )
+                if next_url and url_has_allowed_host_and_scheme(
+                    url=next_url,
+                    allowed_hosts={request.get_host()},
+                    require_https=request.is_secure(),
+                ):
+                    return redirect(next_url)
+                return redirect('dashboard:overview')
             else:
+                record_audit_event(
+                    request=request,
+                    user=user,
+                    action_type='admin_login_denied',
+                    target_entity='User',
+                    target_id=user.pk,
+                )
                 messages.error(request, "Access Denied: Your account belongs to a Field Inspector. Only authorized DPWH Administrators hold access rights to manage inspector accounts and web dashboard reports.")
         else:
+            record_audit_event(
+                request=request,
+                action_type='admin_login_failed',
+                target_entity='Authentication',
+            )
             messages.error(request, "Invalid administrator email/username or security password.")
 
-    return render(request, 'accounts/login.html')
+    return render(
+        request,
+        'accounts/login.html',
+        {'next': request.GET.get('next', '')},
+    )
 
+@require_POST
 def admin_logout(request):
+    if request.user.is_authenticated:
+        record_audit_event(
+            request=request,
+            action_type='admin_logout',
+            target_entity='User',
+            target_id=request.user.pk,
+        )
     logout(request)
     messages.info(request, "You have been safely logged out from the DPWH VERIFY Admin Portal.")
     return redirect('accounts:login')
@@ -126,6 +180,48 @@ def register_inspector(request):
     else:
         form = InspectorRegistrationForm()
     return render(request, 'accounts/register.html', {'form': form, 'active_page': 'register'})
+
+@user_passes_test(is_admin_user, login_url='accounts:login')
+@transaction.atomic
+def edit_inspector(request, pk):
+    inspector = get_object_or_404(
+        Inspector.objects.select_related('user'),
+        pk=pk,
+    )
+
+    if request.method == 'POST':
+        form = InspectorUpdateForm(
+            request.POST,
+            inspector=inspector,
+        )
+
+        if form.is_valid():
+            form.save()
+
+            record_audit_event(
+                request=request,
+                action_type='update_inspector',
+                target_entity='Inspector',
+                target_id=inspector.pk,
+            )
+
+            messages.success(
+                request,
+                'Inspector information updated successfully.',
+            )
+            return redirect('accounts:inspector_list')
+    else:
+        form = InspectorUpdateForm(inspector=inspector)
+
+    return render(
+        request,
+        'accounts/edit_inspector.html',
+        {
+            'form': form,
+            'inspector': inspector,
+            'active_page': 'inspector_list',
+        },
+    )
 
 @user_passes_test(is_admin_user, login_url='accounts:login')
 def inspector_list(request):

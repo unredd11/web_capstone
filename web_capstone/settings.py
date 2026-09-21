@@ -21,12 +21,34 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-jynha(m3k)9co5tmw4grn091ek1q0jm4gx6qr6b-3@r1dcmh2+'
+SECRET_KEY = os.environ.get(
+    'DJANGO_SECRET_KEY',
+    'development-only-change-before-deployment',
+)
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get(
+    'DJANGO_DEBUG',
+    'True',
+).lower() == 'true'
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.environ.get(
+        'DJANGO_ALLOWED_HOSTS',
+        '127.0.0.1,localhost',
+    ).split(',')
+    if host.strip()
+]
+
+SESSION_COOKIE_AGE = 30 * 60
+SESSION_SAVE_EVERY_REQUEST = True
+SESSION_COOKIE_HTTPONLY = True
+CSRF_COOKIE_HTTPONLY = True
+
+if not DEBUG:
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_SSL_REDIRECT = True
 
 
 # Application definition
@@ -83,7 +105,9 @@ DATABASES = {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'dpwh_verify_db',
         'USER': 'postgres',
-        'PASSWORD': '123',
+        # Keep database credentials outside source control. Set this in the
+        # terminal or deployment environment before starting Django.
+        'PASSWORD': os.environ.get('POSTGRES_PASSWORD', ''),
         'HOST': 'localhost',
         'PORT': '5432',
     }

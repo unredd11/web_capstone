@@ -110,9 +110,12 @@
                 </span>
                 <span class="user-role">DPWH Administrator</span>
             </div>
-            <a href="{% url 'accounts:logout' %}" class="btn-logout text-decoration-none d-flex align-items-center justify-content-center" title="Sign Out of Admin Portal">
-                <i class="bi bi-box-arrow-right"></i>
-            </a>
+            <form method="post" action="{% url 'accounts:logout' %}" class="m-0">
+                {% csrf_token %}
+                <button type="submit" class="btn-logout d-flex align-items-center justify-content-center border-0" title="Sign Out of Admin Portal">
+                    <i class="bi bi-box-arrow-right"></i>
+                </button>
+            </form>
         </div>
     </aside>
 
