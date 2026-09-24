@@ -68,3 +68,25 @@ def calculate_distance_meters(lat1, lon1, lat2, lon2):
     angle = 2 * atan2(sqrt(value), sqrt(1 - value))
 
     return earth_radius * angle
+
+def check_project_geofence(project, latitude, longitude):
+    if project.latitude is None or project.longitude is None:
+        raise ValueError('The project does not have geofence coordinates.')
+
+    if not -90 <= latitude <= 90:
+        raise ValueError('Latitude must be between -90 and 90.')
+
+    if not -180 <= longitude <= 180:
+        raise ValueError('Longitude must be between -180 and 180.')
+
+    if project.geofence_radius <= 0:
+        raise ValueError('The project geofence radius must be greater than zero.')
+
+    distance = calculate_distance_meters(
+        project.latitude,
+        project.longitude,
+        latitude,
+        longitude,
+    )
+    inside = distance <= float(project.geofence_radius)
+    return distance, inside

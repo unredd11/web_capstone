@@ -328,6 +328,7 @@
         projects.forEach(function (project) {
             const latitude = Number(project.latitude);
             const longitude = Number(project.longitude);
+            const radius = Number(project.geofence_radius);
 
             if (
                 !Number.isFinite(latitude)
@@ -346,12 +347,26 @@
             const details = document.createElement('div');
             title.textContent = project.name;
             details.textContent = project.status + ' - ' + project.progress + '% progress';
-            details.textContent = project.status + ' · ' + project.progress + '% progress';
-            details.textContent = project.status + ' - ' + project.progress + '% progress';
             popup.appendChild(title);
             popup.appendChild(details);
             L.marker(point).addTo(map).bindPopup(popup);
             bounds.push(point);
+
+            if (Number.isFinite(radius) && radius > 0) {
+                const circle = L.circle(point, {
+                    radius: radius,
+                    color: '#0d6efd',
+                    fillColor: '#0d6efd',
+                    fillOpacity: 0.12,
+                    weight: 2
+                }).addTo(map);
+                bounds.push(circle.getBounds().getSouthWest());
+                bounds.push(circle.getBounds().getNorthEast());
+
+                const radiusDetails = document.createElement('div');
+                radiusDetails.textContent = 'Geofence radius: ' + radius + ' meters';
+                popup.appendChild(radiusDetails);
+            }
         });
 
         if (!bounds.length) {

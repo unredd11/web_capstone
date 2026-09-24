@@ -2,7 +2,7 @@ import csv
 
 from django.contrib import messages
 from django.contrib.auth.decorators import user_passes_test
-from django.http import HttpResponse
+from django.http import HttpResponse, request
 from django.db import transaction
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
@@ -23,9 +23,9 @@ from .models import (
 )
 
 from .services import (
-    calculate_distance_meters,
     calculate_phash,
     calculate_sha256,
+    check_project_geofence,
 )
 
 def is_admin_user(user):
@@ -148,86 +148,15 @@ def report_history(request):
         'images',
     )
 
-    search_query = request.GET.get('q', '').strip()
-    selected_status = request.GET.get('status', '').strip()
-    selected_project = request.GET.get('project', '').strip()
-    selected_inspector = request.GET.get(
-        'inspector',
-        '',
-    ).strip()
-    date_from_value = request.GET.get(
-        'date_from',
-        '',
-    ).strip()
-    date_to_value = request.GET.get(
-        'date_to',
-        '',
-    ).strip()
+    reports, filter_values = apply_report_filters(reports, request)
 
-    if search_query:
-        reports = reports.filter(
-            Q(
-                project__project_name__icontains=(
-                    search_query
-                )
-            )
-            | Q(
-                inspector__employee_id__icontains=(
-                    search_query
-                )
-            )
-            | Q(
-                inspector__user__first_name__icontains=(
-                    search_query
-                )
-            )
-            | Q(
-                inspector__user__last_name__icontains=(
-                    search_query
-                )
-            )
-            | Q(
-                accomplishment_description__icontains=(
-                    search_query
-                )
-            )
-        )
-
-    if selected_status in {
-        'Pending',
-        'Approved',
-        'Rejected',
-    }:
-        reports = reports.filter(
-            status=selected_status
-        )
-
-    if selected_project.isdigit():
-        reports = reports.filter(
-            project_id=int(selected_project)
-        )
-
-    if selected_inspector.isdigit():
-        reports = reports.filter(
-            inspector_id=int(selected_inspector)
-        )
-
-    date_from = parse_date(date_from_value)
-    date_to = parse_date(date_to_value)
-    filter_error = ''
-
-    if date_from and date_to and date_from > date_to:
-        filter_error = 'The start date cannot be later than the end date.'
-    else:
-        if date_from:
-            reports = reports.filter(
-                submitted_at__date__gte=date_from
-            )
-
-        if date_to:
-            reports = reports.filter(
-                submitted_at__date__lte=date_to
-            )
+    search_query = filter_values['search_query']
+    selected_status = filter_values['selected_status']
+    selected_project = filter_values['selected_project']
+    selected_inspector = filter_values['selected_inspector']
+    date_from_value = filter_values['date_from']
+    date_to_value = filter_values['date_to']
+    filter_error = filter_values['filter_error']
 
     paginator = Paginator(reports, 10)
     page_obj = paginator.get_page(
@@ -330,83 +259,17 @@ def audit_log_list(request):
         'user'
     )
 
-    search_query = request.GET.get('q', '').strip()
-    selected_action = request.GET.get(
-        'action',
-        '',
-    ).strip()
-    date_from_value = request.GET.get(
-        'date_from',
-        '',
-    ).strip()
-    date_to_value = request.GET.get(
-        'date_to',
-        '',
-    ).strip()
+    audit_logs, filter_values = apply_audit_filters(audit_logs, request)
 
-    if search_query:
-        audit_logs = audit_logs.filter(
-            Q(
-                user__username__icontains=search_query
-            )
-            | Q(
-                user__first_name__icontains=(
-                    search_query
-                )
-            )
-            | Q(
-                user__last_name__icontains=(
-                    search_query
-                )
-            )
-            | Q(
-                action_type__icontains=search_query
-            )
-            | Q(
-                target_entity__icontains=search_query
-            )
-            | Q(
-                device_info__icontains=search_query
-            )
-            | Q(
-                ip_address__icontains=search_query
-            )
-        )
-
-        if search_query.isdigit():
-            audit_logs = audit_logs.filter(
-                Q(target_id=int(search_query))
-                | Q(action_type__icontains=search_query)
-                | Q(target_entity__icontains=search_query)
-                | Q(device_info__icontains=search_query)
-                | Q(ip_address__icontains=search_query)
-            )
-
-    if selected_action:
-        audit_logs = audit_logs.filter(
-            action_type=selected_action
-        )
-
-    date_from = parse_date(date_from_value)
-    date_to = parse_date(date_to_value)
-    filter_error = ''
-
-    if date_from and date_to and date_from > date_to:
-        filter_error = 'The start date cannot be later than the end date.'
-    else:
-        if date_from:
-            audit_logs = audit_logs.filter(
-                timestamp__date__gte=date_from
-            )
-
-        if date_to:
-            audit_logs = audit_logs.filter(
-                timestamp__date__lte=date_to
-            )
+    search_query = filter_values['search_query']
+    selected_action = filter_values['selected_action']
+    date_from_value = filter_values['date_from']
+    date_to_value = filter_values['date_to']
+    filter_error = filter_values['filter_error']
 
     actions = AuditLog.objects.order_by().values_list(
-        'action_type',
-        flat=True,
+    'action_type',
+    flat=True,
     ).distinct()
 
     paginator = Paginator(audit_logs, 20)
@@ -565,18 +428,25 @@ def upload_inspection_image(request, pk):
     image.file_size = uploaded_file.size
     image.mime_type = getattr(uploaded_file, 'content_type', '')
 
-    distance = calculate_distance_meters(
-        report.project.latitude,
-        report.project.longitude,
-        image.latitude,
-        image.longitude,
-    )
+    try:
+        distance, inside = check_project_geofence(
+            report.project,
+            image.latitude,
+            image.longitude,
+        )
+    except ValueError as error:
+        messages.error(request, str(error))
+        return redirect('verifications:report_detail', pk=report.pk)
+
+    if not inside:
+        messages.error(
+            request,
+            'Image rejected: the GPS location is outside the project geofence.',
+        )
+        return redirect('verifications:report_detail', pk=report.pk)
+
     image.geofence_distance = round(distance, 2)
-    image.geofence_status = (
-        'Inside'
-        if distance <= float(report.project.geofence_radius)
-        else 'Outside'
-    )
+    image.geofence_status = 'Inside'
 
     image.save()
 

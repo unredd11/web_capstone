@@ -20,9 +20,9 @@ from .models import (
     VerificationReport,
 )
 from .services import (
-    calculate_distance_meters,
     calculate_phash,
     calculate_sha256,
+    check_project_geofence,
 )
 
 def serialize_mobile_report(request, report):
@@ -449,18 +449,21 @@ def mobile_submit_report(request):
 
     inspection_image = image_form.save(commit=False)
 
-    distance = calculate_distance_meters(
-        project.latitude,
-        project.longitude,
-        inspection_image.latitude,
-        inspection_image.longitude,
-    )
+    try:
+        distance, inside = check_project_geofence(
+            project,
+            inspection_image.latitude,
+            inspection_image.longitude,
+        )
+    except ValueError as error:
+        return api_error(str(error))
 
-    geofence_status = (
-        'Inside'
-        if distance <= float(project.geofence_radius)
-        else 'Outside'
-    )
+    if not inside:
+        return api_error(
+            'Image rejected: the GPS location is outside the project geofence.'
+        )
+
+    geofence_status = 'Inside'
 
     with transaction.atomic():
         report = VerificationReport.objects.create(

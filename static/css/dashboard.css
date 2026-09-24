@@ -139,27 +139,12 @@ a {
     align-items: center;
     gap: 12px;
     padding: 11px 16px;
-    color: #374151; /* 👈 Dark charcoal text for readability on white */
+    color: #374151;
     font-size: 14px;
     font-weight: 500;
     border-radius: 8px;
-    transition: var(--transition);
+    transition: all 0.2s ease-in-out;
     position: relative;
-}
-
-/* Hover effect when moving mouse over menu items */
-.sidebar-nav a:hover {
-    color: #f26f21; 
-    background: #fff3ec; 
-    transform: translateX(4px);
-}
-
-/* Selected / Active page button */
-.sidebar-nav a.active {
-    color: #ffffff !important;
-    background: #f26f21;       
-    font-weight: 700;
-    box-shadow: 0 4px 12px rgba(242, 111, 33, 0.3);
 }
 
 .sidebar-nav a .nav-icon {
@@ -170,6 +155,23 @@ a {
     justify-content: center;
     flex-shrink: 0;
     font-size: 18px;
+    transition: transform 0.2s ease-in-out;
+}
+
+.sidebar-nav a:hover {
+    color: #f26f21; 
+    background: #fff3ec; 
+}
+
+.sidebar-nav a:hover .nav-icon {
+    transform: scale(1.15);
+}
+
+.sidebar-nav a.active {
+    color: #ffffff !important;
+    background: #f26f21;       
+    font-weight: 700;
+    box-shadow: 0 4px 12px rgba(242, 111, 33, 0.3);
 }
 
 .sidebar-nav a .badge {
@@ -221,14 +223,14 @@ a {
 
 .sidebar-footer .btn-logout {
     margin-left: auto;
-    color: #6b7280;
-    background: none;
-    border: none;
+    color: #9ca3af;
+    background: transparent;
+    width: 36px;
+    height: 36px;
     font-size: 18px;
     cursor: pointer;
-    padding: 6px;
-    border-radius: 6px;
-    transition: var(--transition);
+    border-radius: 8px;
+    transition: all 0.2s ease-in-out;
 }
 
 .sidebar-footer .btn-logout:hover {

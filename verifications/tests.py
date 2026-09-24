@@ -547,3 +547,252 @@ class VerificationWorkflowTests(TestCase):
         self.assertEqual(projects_response.status_code, 200)
         self.assertEqual(projects_response.json()['count'], 0)
         self.assertEqual(submission_response.status_code, 403)
+
+    def test_non_admin_cannot_view_or_export_audit_logs(self):
+        inspector_user = self.inspector.user
+        self.client.force_login(inspector_user)
+
+        page = self.client.get(reverse('verifications:audit_log_list'))
+        export = self.client.get(
+            reverse('verifications:export_audit_logs_csv')
+        )
+
+        self.assertEqual(page.status_code, 302)
+        self.assertEqual(export.status_code, 302)
+
+
+    def test_audit_export_respects_action_filter(self):
+        AuditLog.objects.create(
+            user=self.admin,
+            action_type='approved',
+            target_entity='VerificationReport',
+            target_id=self.report.pk,
+        )
+        AuditLog.objects.create(
+            user=self.admin,
+            action_type='rejected',
+            target_entity='VerificationReport',
+            target_id=self.report.pk,
+        )
+        self.client.force_login(self.admin)
+
+        response = self.client.get(
+            reverse('verifications:export_audit_logs_csv'),
+            {'action': 'approved'},
+        )
+        csv_text = response.content.decode()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('approved', csv_text)
+        self.assertNotIn('rejected', csv_text)
+
+    def test_audit_page_and_export_match_numeric_target_search(self):
+        matching = AuditLog.objects.create(
+            user=self.admin,
+            action_type='approved',
+            target_entity='VerificationReport',
+            target_id=self.report.pk,
+        )
+        AuditLog.objects.create(
+            user=self.admin,
+            action_type='rejected',
+            target_entity='VerificationReport',
+            target_id=self.report.pk + 1000,
+        )
+        self.client.force_login(self.admin)
+
+        filters = {'q': str(self.report.pk)}
+        page = self.client.get(
+            reverse('verifications:audit_log_list'),
+            filters,
+        )
+        export = self.client.get(
+            reverse('verifications:export_audit_logs_csv'),
+            filters,
+        )
+
+        self.assertEqual(page.status_code, 200)
+        self.assertEqual(list(page.context['audit_logs']), [matching])
+        self.assertIn('approved', export.content.decode())
+        self.assertNotIn('rejected', export.content.decode())
+
+    def test_report_page_and_csv_use_the_same_filters(self):
+        other_report = VerificationReport.objects.create(
+            project=self.project,
+            inspector=self.inspector,
+            progress_percentage=Decimal('30.00'),
+            accomplishment_description='Approved work.',
+            status='Approved',
+        )
+        self.client.force_login(self.admin)
+        filters = {'status': 'Pending', 'project': str(self.project.pk)}
+
+        page = self.client.get(
+            reverse('verifications:report_history'), filters
+        )
+        export = self.client.get(
+            reverse('verifications:export_reports_csv'), filters
+        )
+
+        self.assertEqual(page.status_code, 200)
+        self.assertEqual(list(page.context['reports']), [self.report])
+        self.assertIn(
+            'Initial site work completed.',
+            export.content.decode(),
+        )
+        self.assertNotIn(
+            'Approved work.',
+            export.content.decode(),
+        )
+        self.assertNotEqual(self.report.pk, other_report.pk)
+
+    def test_report_detail_displays_uploaded_image(self):
+        image = InspectionImage.objects.create(
+            report=self.report,
+            image_file=self.create_test_image(),
+            sha256_hash='a' * 64,
+            perceptual_hash='b' * 16,
+            latitude=Decimal('8.2280000'),
+            longitude=Decimal('124.2452000'),
+            captured_at=timezone.now(),
+            geofence_distance=Decimal('0.00'),
+            geofence_status='Inside',
+            file_size=100,
+            mime_type='image/png',
+        )
+        self.client.force_login(self.admin)
+
+        response = self.client.get(
+            reverse(
+                'verifications:report_detail',
+                args=[self.report.pk],
+            )
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, image.sha256_hash)
+        self.assertContains(response, image.perceptual_hash)
+
+    def test_approval_is_blocked_for_outside_image(self):
+        InspectionImage.objects.create(
+            report=self.report,
+            image_file=self.create_test_image(),
+            sha256_hash='a' * 64,
+            perceptual_hash='b' * 16,
+            latitude=Decimal('8.2300000'),
+            longitude=Decimal('124.2500000'),
+            captured_at=timezone.now(),
+            geofence_distance=Decimal('500.00'),
+            geofence_status='Outside',
+            file_size=100,
+            mime_type='image/png',
+        )
+        self.client.force_login(self.admin)
+
+        self.client.post(
+            reverse(
+                'verifications:review_report',
+                args=[self.report.pk],
+            ),
+            {'decision': 'Approved', 'review_notes': ''},
+        )
+
+        self.report.refresh_from_db()
+        self.assertEqual(self.report.status, 'Pending')
+        self.assertFalse(
+            AuditLog.objects.filter(
+                action_type='approved',
+                target_entity='VerificationReport',
+                target_id=self.report.pk,
+            ).exists()
+        )
+
+    def test_reviewed_report_cannot_be_reviewed_twice(self):
+        self.report.status = 'Rejected'
+        self.report.review_notes = 'Evidence unclear.'
+        self.report.save(update_fields=['status', 'review_notes'])
+        self.client.force_login(self.admin)
+
+        self.client.post(
+            reverse(
+                'verifications:review_report',
+                args=[self.report.pk],
+            ),
+            {
+                'decision': 'Approved',
+                'review_notes': 'Changed my mind.',
+            },
+        )
+
+        self.report.refresh_from_db()
+        self.assertEqual(self.report.status, 'Rejected')
+        self.assertEqual(self.report.review_notes, 'Evidence unclear.')
+        self.assertFalse(
+            AuditLog.objects.filter(
+                action_type='approved',
+                target_id=self.report.pk,
+            ).exists()
+        )
+
+    def test_review_audit_log_records_actor_and_request_details(self):
+        self.client.force_login(self.admin)
+
+        self.client.post(
+            reverse(
+                'verifications:review_report',
+                args=[self.report.pk],
+            ),
+            {
+                'decision': 'Rejected',
+                'review_notes': 'Outside the project site.',
+            },
+            REMOTE_ADDR='192.0.2.10',
+            HTTP_USER_AGENT='CapstoneTestBrowser',
+        )
+
+        event = AuditLog.objects.get(
+            action_type='rejected',
+            target_entity='VerificationReport',
+            target_id=self.report.pk,
+        )
+        self.assertEqual(event.user, self.admin)
+        self.assertEqual(event.ip_address, '192.0.2.10')
+        self.assertEqual(event.device_info, 'CapstoneTestBrowser')
+
+    def test_mobile_rejects_outside_geofence_without_creating_report(self):
+        login_response = self.client.post(
+            reverse('verifications:mobile_login'),
+            data=json.dumps({
+                'username': 'inspector@example.com',
+                'password': 'test-password',
+            }),
+            content_type='application/json',
+        )
+        token = login_response.json()['token']
+        original_report_count = VerificationReport.objects.count()
+        original_image_count = InspectionImage.objects.count()
+
+        response = self.client.post(
+            reverse('verifications:mobile_submit_report'),
+            {
+                'project_id': str(self.project.pk),
+                'progress_percentage': '30.00',
+                'accomplishment_description': 'Outside geofence test.',
+                'image_file': self.create_test_image(),
+                'latitude': '8.2300000',
+                'longitude': '124.2500000',
+                'gps_accuracy': '5.00',
+                'captured_at': timezone.now().isoformat(),
+            },
+            HTTP_AUTHORIZATION=f'Bearer {token}',
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            VerificationReport.objects.count(),
+            original_report_count,
+        )
+        self.assertEqual(
+            InspectionImage.objects.count(),
+            original_image_count,
+        )

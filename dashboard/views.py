@@ -73,6 +73,7 @@ def overview(request):
             'name': project.project_name,
             'latitude': float(project.latitude),
             'longitude': float(project.longitude),
+            'geofence_radius': float(project.geofence_radius),
             'status': project.status,
             'progress': float(project.progress_percentage),
         }
