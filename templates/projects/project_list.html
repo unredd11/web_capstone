@@ -56,6 +56,12 @@
                             <span class="status-badge badge-{{ project.status|lower }}">{{ project.status }}</span>
                         </td>
                         <td>
+                            <a href="{% url 'projects:project_detail' project.pk %}"
+                                class="btn btn-sm btn-outline-primary me-1"
+                                title="View project details and inspections"
+                                aria-label="View details for {{ project.project_name }}">
+                                 <i class="bi bi-eye"></i>
+                            </a>
                             <a href="{% url 'projects:project_edit' project.pk %}" class="btn btn-sm btn-outline-primary me-1" title="Edit Project & Geofence">
                                 <i class="bi bi-pencil-square"></i>
                             </a>

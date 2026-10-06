@@ -2,6 +2,10 @@ from django.contrib import messages
 from django.contrib.auth.decorators import user_passes_test
 from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
+from django.conf import settings
+from django.core.paginator import Paginator
+from django.db.models import Count, Min
+from verifications.models import VerificationReport
 
 from verifications.audit import record_audit_event
 
@@ -17,6 +21,35 @@ def is_admin_user(user):
 def project_list(request):
     projects = Project.objects.all()
     return render(request, 'projects/project_list.html', {'projects': projects, 'active_page': 'project_list'})
+
+@user_passes_test(is_admin_user, login_url='accounts:login')
+def project_detail(request, pk):
+    project = get_object_or_404(
+        Project.objects.select_related('assigned_inspector__user'),
+        pk=pk,
+    )
+
+    reports = (
+        VerificationReport.objects
+        .filter(project=project)
+        .select_related('inspector__user')
+        .annotate(
+            image_count=Count('images'),
+            first_captured_at=Min('images__captured_at'),
+        )
+        .order_by('-submitted_at', '-pk')
+    )
+
+    paginator = Paginator(reports, 10)
+    page_obj = paginator.get_page(request.GET.get('page'))
+
+    return render(request, 'projects/project_detail.html', {
+        'project': project,
+        'reports': page_obj,
+        'page_obj': page_obj,
+        'report_count': paginator.count,
+        'active_page': 'project_list',
+    })
 
 @user_passes_test(is_admin_user, login_url='accounts:login')
 @transaction.atomic
@@ -47,7 +80,12 @@ def project_add(request):
             return redirect('projects:project_list')
     else:
         form = ProjectForm()
-    return render(request, 'projects/project_form.html', {'form': form, 'title': 'Add New Project', 'active_page': 'project_add'})
+    return render(request, 'projects/project_form.html', {
+    'form': form,
+    'title': 'Add New Project',
+    'active_page': 'project_add',
+    'google_maps_browser_key': settings.GOOGLE_MAPS_BROWSER_KEY,
+})
 
 @user_passes_test(is_admin_user, login_url='accounts:login')
 @transaction.atomic
@@ -79,7 +117,13 @@ def project_edit(request, pk):
             return redirect('projects:project_list')
     else:
         form = ProjectForm(instance=project)
-    return render(request, 'projects/project_form.html', {'form': form, 'title': f'Edit: {project.project_name}', 'project': project, 'active_page': 'project_list'})
+    return render(request, 'projects/project_form.html', {
+    'form': form,
+    'title': f'Edit: {project.project_name}',
+    'project': project,
+    'active_page': 'project_list',
+    'google_maps_browser_key': settings.GOOGLE_MAPS_BROWSER_KEY,
+})
 
 @user_passes_test(is_admin_user, login_url='accounts:login')
 @transaction.atomic

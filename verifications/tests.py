@@ -1,5 +1,4 @@
 import json
-from datetime import datetime
 from decimal import Decimal
 from io import BytesIO
 import shutil
@@ -8,7 +7,7 @@ import tempfile
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import SimpleTestCase, TestCase, override_settings
-from django.urls import reverse
+from django.urls import Resolver404, resolve, reverse
 from django.utils import timezone
 from PIL import Image
 
@@ -213,37 +212,17 @@ class VerificationWorkflowTests(TestCase):
             ).exists()
         )
 
-    def test_upload_generates_hashes_geofence_and_audit_log(self):
+    def test_web_report_has_no_image_upload_route_or_form(self):
         self.client.force_login(self.admin)
-        response = self.client.post(
-            reverse('verifications:upload_image', args=[self.report.pk]),
-            {
-                'image_file': self.create_test_image(),
-                'latitude': '8.2280000',
-                'longitude': '124.2452000',
-                'altitude': '20.00',
-                'gps_accuracy': '5.00',
-                'captured_at': timezone.make_aware(datetime(2026, 9, 9, 10, 0)),
-            },
+        response = self.client.get(
+            reverse('verifications:report_detail', args=[self.report.pk])
         )
 
-        self.assertEqual(response.status_code, 302)
-        image = InspectionImage.objects.get(report=self.report)
-        blockchain_record = BlockchainRecord.objects.get(
-            inspection_image=image
-        )
-        self.assertEqual(len(image.sha256_hash), 64)
-        self.assertEqual(len(image.perceptual_hash), 16)
-        self.assertEqual(image.geofence_status, 'Inside')
-        self.assertEqual(image.geofence_distance, Decimal('0.00'))
-        self.assertEqual(blockchain_record.commit_status, 'Pending')
-        self.assertTrue(
-            AuditLog.objects.filter(
-                action_type='upload_image',
-                target_entity='InspectionImage',
-                target_id=image.pk,
-            ).exists()
-        )
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'Upload Inspection Image')
+        self.assertNotContains(response, 'Upload and Verify')
+        with self.assertRaises(Resolver404):
+            resolve(f'/verifications/{self.report.pk}/images/upload/')
 
     def test_rejection_requires_notes_and_creates_audit_log(self):
         self.client.force_login(self.admin)
@@ -406,6 +385,10 @@ class VerificationWorkflowTests(TestCase):
             accomplishment_description='Mobile submission.'
         )
         submitted_image = submitted_report.images.get()
+        self.assertEqual(len(submitted_image.sha256_hash), 64)
+        self.assertEqual(len(submitted_image.perceptual_hash), 16)
+        self.assertEqual(submitted_image.geofence_status, 'Inside')
+        self.assertEqual(submitted_image.geofence_distance, Decimal('0.00'))
         self.assertTrue(
             BlockchainRecord.objects.filter(
                 inspection_image=submitted_image,

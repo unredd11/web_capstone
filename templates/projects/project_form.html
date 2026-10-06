@@ -4,6 +4,10 @@
 {% block breadcrumb %}Projects{% endblock %}
 {% block page_title %}{{ title }}{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+{% endblock %}
+
 {% block content %}
 <div class="row">
     <div class="col-lg-10">
@@ -52,6 +56,31 @@
                             <label class="form-label fw-semibold">Physical Site Address / Landmark</label>
                             {{ form.location_address }}
                         </div>
+                        <div class="col-12">
+
+                        <div class="d-flex flex-wrap gap-2">
+                            <button type="button" id="find-address" class="btn btn-outline-primary">
+                                <i class="bi bi-search me-1"></i> Find address coordinates
+                            </button>
+
+                            <button type="button" id="use-current-location" class="btn btn-outline-secondary">
+                                <i class="bi bi-crosshair me-1"></i> Use current location
+                            </button>
+
+                            <button type="button" id="choose-on-map" class="btn btn-outline-primary">
+                                <i class="bi bi-geo-alt-fill me-1"></i> Choose on map
+                            </button>
+                        </div>
+                        <div id="location-message" class="small text-muted mt-2" role="status" aria-live="polite">
+                            Search an address, use your location, or click the pin button and select a point on the map.
+                        </div>
+                    </div>
+
+                    <div class="col-12">
+                        <div id="project-location-map"
+                            style="height: 320px; border-radius: 10px; border: 1px solid #dee2e6;">
+                        </div>
+                    </div>
 
                         <div class="col-12 mt-4">
                             <h6 class="text-primary fw-bold mb-0 mt-2"></i>2. Geospatial Geofence Parameters (For Mobile Authentication)</h6>
@@ -111,4 +140,270 @@
         </div>
     </div>
 </div>
+{% endblock %}
+{% block extra_js %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+(function () {
+    let fallbackStarted = false;
+
+    window.startProjectMapFallback = function () {
+        if (fallbackStarted) return;
+        fallbackStarted = true;
+        window.projectMapFallbackActive = true;
+
+        const mapElement = document.getElementById('project-location-map');
+        const message = document.getElementById('location-message');
+        const addressButton = document.getElementById('find-address');
+        const latitudeInput = document.getElementById('id_latitude');
+        const longitudeInput = document.getElementById('id_longitude');
+        const radiusInput = document.getElementById('id_geofence_radius');
+        const chooseButton = document.getElementById('choose-on-map');
+        const currentButton = document.getElementById('use-current-location');
+
+        addressButton.disabled = true;
+        addressButton.title = 'Google address lookup is unavailable.';
+        message.textContent = 'Google Maps is unavailable. You can still choose the project location on this map or enter coordinates manually. Address lookup needs a working Google Maps key.';
+
+        if (typeof L === 'undefined') {
+            mapElement.textContent = 'The fallback map could not load. Check your internet connection; you can still enter coordinates manually.';
+            return;
+        }
+
+        // Remove the failed Google map before Leaflet attaches to this element.
+        mapElement.replaceChildren();
+        const map = L.map(mapElement, { scrollWheelZoom: false }).setView([8.2280, 124.2452], 13);
+        L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+            subdomains: 'abc',
+            maxZoom: 17,
+            attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, map style &copy; <a href="https://opentopomap.org">OpenTopoMap</a>'
+        }).addTo(map);
+
+        let marker = null;
+        let circle = null;
+        let choosingOnMap = false;
+
+        function updateCircle() {
+            if (circle) map.removeLayer(circle);
+            const radius = Number(radiusInput.value);
+            if (marker && Number.isFinite(radius) && radius > 0) {
+                circle = L.circle(marker.getLatLng(), {
+                    radius: radius,
+                    color: '#0d6efd',
+                    fillOpacity: 0.12
+                }).addTo(map);
+            } else {
+                circle = null;
+            }
+        }
+
+        function setPoint(lat, lng) {
+            lat = Number(lat);
+            lng = Number(lng);
+            if (!Number.isFinite(lat) || !Number.isFinite(lng) ||
+                lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+                message.textContent = 'Enter valid latitude and longitude values.';
+                return;
+            }
+            latitudeInput.value = lat.toFixed(7);
+            longitudeInput.value = lng.toFixed(7);
+            if (marker) marker.setLatLng([lat, lng]);
+            else marker = L.marker([lat, lng]).addTo(map);
+            map.setView([lat, lng], 17);
+            updateCircle();
+            message.textContent = 'Location selected. Check the pin and radius before saving.';
+        }
+
+        chooseButton.addEventListener('click', function () {
+            choosingOnMap = true;
+            message.textContent = 'Click the project site on the map to place the pin.';
+        });
+        map.on('click', function (event) {
+            if (!choosingOnMap) return;
+            choosingOnMap = false;
+            setPoint(event.latlng.lat, event.latlng.lng);
+        });
+        currentButton.addEventListener('click', function () {
+            if (!navigator.geolocation) {
+                message.textContent = 'This browser does not support current location.';
+                return;
+            }
+            message.textContent = 'Requesting your location...';
+            navigator.geolocation.getCurrentPosition(
+                function (position) { setPoint(position.coords.latitude, position.coords.longitude); },
+                function () { message.textContent = 'Location permission denied or unavailable.'; },
+                { enableHighAccuracy: true, timeout: 10000 }
+            );
+        });
+        radiusInput.addEventListener('input', updateCircle);
+        function syncManualCoordinates() {
+            if (latitudeInput.value && longitudeInput.value) {
+                setPoint(latitudeInput.value, longitudeInput.value);
+            }
+        }
+        latitudeInput.addEventListener('change', syncManualCoordinates);
+        longitudeInput.addEventListener('change', syncManualCoordinates);
+        syncManualCoordinates();
+        setTimeout(function () { map.invalidateSize(); }, 0);
+    };
+
+    // Google invokes this when the map key, billing, API, or referrer is rejected.
+    window.gm_authFailure = function () {
+        window.startProjectMapFallback();
+    };
+})();
+</script>
+{% if google_maps_browser_key %}
+<script>
+window.initProjectMap = function () {
+    if (window.projectMapFallbackActive) return;
+    const addressInput = document.getElementById('id_location_address');
+    const latitudeInput = document.getElementById('id_latitude');
+    const longitudeInput = document.getElementById('id_longitude');
+    const radiusInput = document.getElementById('id_geofence_radius');
+    const message = document.getElementById('location-message');
+    const chooseButton = document.getElementById('choose-on-map');
+
+    const defaultPoint = { lat: 8.2280, lng: 124.2452 }; // Iligan City
+    const map = new google.maps.Map(
+        document.getElementById('project-location-map'),
+        { center: defaultPoint, zoom: 13 }
+    );
+    const geocoder = new google.maps.Geocoder();
+
+    let marker = null;
+    let circle = null;
+    let choosingOnMap = false;
+
+    function updateCircle() {
+        if (circle) circle.setMap(null);
+        if (!marker) return;
+
+        const radius = Number(radiusInput.value);
+        if (!Number.isFinite(radius) || radius <= 0) return;
+
+        circle = new google.maps.Circle({
+            map: map,
+            center: marker.getPosition(),
+            radius: radius,
+            strokeColor: '#0d6efd',
+            strokeOpacity: 0.9,
+            strokeWeight: 2,
+            fillColor: '#0d6efd',
+            fillOpacity: 0.12
+        });
+    }
+
+    function setPoint(lat, lng) {
+        lat = Number(lat);
+        lng = Number(lng);
+
+        if (!Number.isFinite(lat) || !Number.isFinite(lng) ||
+            lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+            message.textContent = 'Invalid latitude or longitude.';
+            return;
+        }
+
+        // Your Django model stores seven decimal places.
+        latitudeInput.value = lat.toFixed(7);
+        longitudeInput.value = lng.toFixed(7);
+
+        const point = { lat: lat, lng: lng };
+        if (marker) {
+            marker.setPosition(point);
+        } else {
+            marker = new google.maps.Marker({ map: map, position: point });
+        }
+
+        map.setCenter(point);
+        map.setZoom(17);
+        updateCircle();
+        message.textContent = 'Location selected. Check the pin and geofence circle before saving.';
+    }
+
+    document.getElementById('find-address').addEventListener('click', async function () {
+        if (window.projectMapFallbackActive) return;
+        const address = addressInput.value.trim();
+        if (!address) {
+            message.textContent = 'Enter an address or Plus Code first.';
+            return;
+        }
+
+        message.textContent = 'Finding location...';
+        try {
+            const response = await geocoder.geocode({
+                address: address,
+                region: 'ph'
+            });
+            const result = response.results[0];
+
+            if (!result) {
+                message.textContent = 'No location found. Try a fuller address or choose a point on the map.';
+                return;
+            }
+
+            setPoint(
+                result.geometry.location.lat(),
+                result.geometry.location.lng()
+            );
+        } catch (error) {
+            message.textContent = 'Address lookup failed. Check the address and Google API setup.';
+        }
+    });
+
+    document.getElementById('use-current-location').addEventListener('click', function () {
+        if (window.projectMapFallbackActive) return;
+        if (!navigator.geolocation) {
+            message.textContent = 'This browser does not support current location.';
+            return;
+        }
+
+        message.textContent = 'Requesting your location...';
+        navigator.geolocation.getCurrentPosition(
+            function (position) {
+                setPoint(position.coords.latitude, position.coords.longitude);
+            },
+            function () {
+                message.textContent = 'Location unavailable or permission denied. Choose a point on the map instead.';
+            },
+            { enableHighAccuracy: true, timeout: 10000 }
+        );
+    });
+
+    chooseButton.addEventListener('click', function () {
+        if (window.projectMapFallbackActive) return;
+        choosingOnMap = true;
+        message.textContent = 'Click the project site on the map to place the pin.';
+    });
+
+    map.addListener('click', function (event) {
+        if (window.projectMapFallbackActive) return;
+        if (!choosingOnMap) return;
+        choosingOnMap = false;
+        setPoint(event.latLng.lat(), event.latLng.lng());
+    });
+
+    radiusInput.addEventListener('input', function () {
+        if (!window.projectMapFallbackActive) updateCircle();
+    });
+
+    // Show an existing project's saved location when editing it.
+    const savedLat = Number(latitudeInput.value);
+    const savedLng = Number(longitudeInput.value);
+    if (latitudeInput.value && longitudeInput.value &&
+        Number.isFinite(savedLat) && Number.isFinite(savedLng)) {
+        setPoint(savedLat, savedLng);
+    }
+};
+</script>
+
+<script
+    async
+    src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_browser_key|urlencode }}&loading=async&callback=initProjectMap">
+</script>
+{% else %}
+<script>
+window.startProjectMapFallback();
+</script>
+{% endif %}
 {% endblock %}

@@ -1,0 +1,189 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ project.project_name }}{% endblock %}
+{% block breadcrumb %}Projects / Details{% endblock %}
+{% block page_title %}{{ project.project_name }} — Project Details{% endblock %}
+
+{% block content %}
+<div class="dash-card mb-4">
+    <div class="card-header-custom">
+        <h6>Project Information</h6>
+        <a href="{% url 'projects:project_edit' project.pk %}"
+           class="btn btn-sm btn-outline-primary">
+            <i class="bi bi-pencil-square me-1"></i>Edit Project
+        </a>
+    </div>
+
+    <div class="card-body-custom">
+        <div class="row g-3">
+            <div class="col-md-3">
+                <small class="text-muted d-block">Status</small>
+                <span class="status-badge badge-{{ project.status|lower }}">
+                    {{ project.status }}
+                </span>
+            </div>
+
+            <div class="col-md-3">
+                <small class="text-muted d-block">Current Progress</small>
+                <strong>{{ project.progress_percentage }}%</strong>
+            </div>
+
+            <div class="col-md-3">
+                <small class="text-muted d-block">District</small>
+                <strong>{{ project.get_district_display }}</strong>
+            </div>
+
+            <div class="col-md-3">
+                <small class="text-muted d-block">Assigned Inspector</small>
+                {% if project.assigned_inspector %}
+                    <strong>
+                        {{ project.assigned_inspector.user.get_full_name|default:project.assigned_inspector.user.username }}
+                    </strong>
+                {% else %}
+                    <span class="text-muted">Unassigned</span>
+                {% endif %}
+            </div>
+
+            <div class="col-md-6">
+                <small class="text-muted d-block">Contractor</small>
+                {{ project.contractor|default:"Not specified" }}
+            </div>
+
+            <div class="col-md-6">
+                <small class="text-muted d-block">Site Address</small>
+                {{ project.location_address|default:"Not specified" }}
+            </div>
+
+            <div class="col-md-6">
+                <small class="text-muted d-block">Project Coordinates</small>
+                {% if project.latitude != None and project.longitude != None %}
+                    {{ project.latitude }}, {{ project.longitude }}
+                    — {{ project.geofence_radius }} m radius
+                {% else %}
+                    Not set
+                {% endif %}
+            </div>
+
+            <div class="col-12">
+                <small class="text-muted d-block">Project Description / Scope of Work</small>
+                <div>{{ project.description|default:"No project description provided."|linebreaksbr }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="dash-card">
+    <div class="card-header-custom">
+        <h6>Inspection &amp; Progress History</h6>
+        <span class="text-muted small">{{ report_count }} report{{ report_count|pluralize }}</span>
+    </div>
+
+    <div class="card-body-custom p-0">
+        <div class="table-responsive">
+            <table class="table-custom">
+                <thead>
+                    <tr>
+                        <th>Report</th>
+                        <th>Inspector</th>
+                        <th>Site Capture</th>
+                        <th>Submitted</th>
+                        <th>Reported Progress</th>
+                        <th>Accomplishment / Description</th>
+                        <th>Status</th>
+                        <th>Images</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for report in reports %}
+                    <tr>
+                        <td><strong>#{{ report.pk }}</strong></td>
+
+                        <td>
+                            {{ report.inspector.user.get_full_name|default:report.inspector.user.username }}
+                        </td>
+
+                        <td>
+                            {% if report.first_captured_at %}
+                                {{ report.first_captured_at|date:"M d, Y g:i A" }}
+                            {% else %}
+                                —
+                            {% endif %}
+                        </td>
+
+                        <td>{{ report.submitted_at|date:"M d, Y g:i A" }}</td>
+
+                        <td>{{ report.progress_percentage }}%</td>
+
+                        <td style="min-width: 220px;">
+                            {% if report.accomplishment_description %}
+                                <details>
+                                    <summary style="cursor: pointer;">
+                                        {{ report.accomplishment_description|truncatechars:80 }}
+                                    </summary>
+                                    <div class="mt-2">
+                                        {{ report.accomplishment_description|linebreaksbr }}
+                                    </div>
+                                </details>
+                            {% else %}
+                                <span class="text-muted">No description</span>
+                            {% endif %}
+                        </td>
+
+                        <td>
+                            <span class="status-badge badge-{{ report.status|lower }}">
+                                {{ report.status }}
+                            </span>
+                        </td>
+
+                        <td>{{ report.image_count }}</td>
+
+                        <td>
+                            <a href="{% url 'verifications:report_detail' report.pk %}"
+                               class="btn btn-sm btn-outline-primary">
+                                View Report
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="text-center text-muted py-4">
+                            No inspection reports have been submitted for this project.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if page_obj.has_other_pages %}
+        <nav class="p-3" aria-label="Inspection history pages">
+            <div class="d-flex justify-content-between align-items-center">
+                {% if page_obj.has_previous %}
+                    <a class="btn btn-sm btn-outline-secondary"
+                       href="?page={{ page_obj.previous_page_number }}">
+                        Previous
+                    </a>
+                {% else %}
+                    <span></span>
+                {% endif %}
+
+                <span class="small text-muted">
+                    Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                </span>
+
+                {% if page_obj.has_next %}
+                    <a class="btn btn-sm btn-outline-secondary"
+                       href="?page={{ page_obj.next_page_number }}">
+                        Next
+                    </a>
+                {% else %}
+                    <span></span>
+                {% endif %}
+            </div>
+        </nav>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

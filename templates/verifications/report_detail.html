@@ -5,7 +5,8 @@
 {% block page_title %}Inspection Report #{{ report.id }}{% endblock %}
 
 {% block content %}
-<div class="dash-card mb-4">
+<!-- Compact report summary -->
+<div class="dash-card mb-3">
     <div class="card-header-custom">
         <h6>Report Information</h6>
         <span class="status-badge badge-{{ report.status|lower }}">
@@ -13,234 +14,234 @@
         </span>
     </div>
 
- <div class="card-body-custom">
-        <p><strong>Project:</strong> {{ report.project.project_name }}</p>
-
-        <p>
-            <strong>Inspector:</strong>
-            {{ report.inspector.user.get_full_name }}
-        </p>
-
-        <p>
-            <strong>Progress:</strong>
-            {{ report.progress_percentage }}%
-        </p>
-
-        <p>
-            <strong>Accomplishment:</strong>
-            {{ report.accomplishment_description|default:"No description" }}
-        </p>
+    <div class="card-body-custom">
+        <div class="row g-3">
+            <div class="col-md-3">
+                <small class="text-muted d-block">Project</small>
+                <strong>{{ report.project.project_name }}</strong>
+            </div>
+            <div class="col-md-3">
+                <small class="text-muted d-block">Inspector</small>
+                <strong>{{ report.inspector.user.get_full_name }}</strong>
+            </div>
+            <div class="col-md-2">
+                <small class="text-muted d-block">Progress</small>
+                <strong>{{ report.progress_percentage }}%</strong>
+            </div>
+            <div class="col-md-4">
+                <small class="text-muted d-block">Submitted</small>
+                <strong>{{ report.submitted_at|date:"M d, Y — g:i A" }}</strong>
+            </div>
+            <div class="col-12">
+                <small class="text-muted d-block">Accomplishment</small>
+                {{ report.accomplishment_description|default:"No description" }}
+            </div>
+        </div>
 
         {% if report.resubmission_of %}
-        <p>
-            <strong>Resubmission of:</strong>
+        <div class="mt-2">
+            Resubmission of
             <a href="{% url 'verifications:report_detail' report.resubmission_of.pk %}">
                 Report #{{ report.resubmission_of.pk }}
             </a>
-        </p>
+        </div>
         {% endif %}
 
         {% with replacement=report.resubmissions.first %}
             {% if replacement %}
-            <p>
-                <strong>Replacement report:</strong>
+            <div class="mt-2">
+                Replacement:
                 <a href="{% url 'verifications:report_detail' replacement.pk %}">
                     Report #{{ replacement.pk }}
                 </a>
-            </p>
+            </div>
             {% endif %}
         {% endwith %}
-
-        <p>
-            <strong>Submitted:</strong>
-            {{ report.submitted_at|date:"M d, Y — g:i A" }}
-        </p>
     </div>
 </div>
 
-{% for image in report.images.all %}
-<div class="dash-card mb-4">
-    <div class="card-header-custom">
-        <h6>Inspection Image #{{ image.id }}</h6>
+<div class="row g-3">
+    <!-- Left: mobile-submitted evidence -->
+    <div class="col-xl-8">
+        <div class="dash-card">
+            <div class="card-header-custom">
+                <h6>Inspection Evidence</h6>
+                <span class="text-muted small">
+                    {{ report.images.count }} image{{ report.images.count|pluralize }}
+                </span>
+            </div>
 
-        <span class="status-badge">
-            {{ image.geofence_status }}
-        </span>
+            <div class="card-body-custom">
+                <div class="row g-3">
+                    {% for image in report.images.all %}
+                    <div class="col-md-6 col-lg-4">
+                        <div class="border rounded h-100 overflow-hidden">
+                            <a href="{{ image.image_file.url }}"
+                               target="_blank"
+                               rel="noopener noreferrer"
+                               title="Open full-size image">
+                                <img src="{{ image.image_file.url }}"
+                                     alt="Inspection image {{ forloop.counter }}"
+                                     class="w-100"
+                                     style="height: 180px; object-fit: cover;">
+                            </a>
+
+                            <div class="p-2">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <strong>Image {{ forloop.counter }}</strong>
+                                    <span class="badge {% if image.geofence_status == 'Inside' %}bg-success{% else %}bg-warning text-dark{% endif %}">
+                                        {{ image.geofence_status }}
+                                    </span>
+                                </div>
+
+                                <details class="mt-2">
+                                    <summary class="small text-primary"
+                                             style="cursor: pointer;">
+                                        View verification details
+                                    </summary>
+
+                                    <div class="small mt-2">
+                                        <div><strong>SHA-256:</strong></div>
+                                        <div class="text-break">{{ image.sha256_hash|default:"Missing" }}</div>
+
+                                        <div class="mt-2"><strong>pHash:</strong></div>
+                                        <div class="text-break">{{ image.perceptual_hash|default:"Missing" }}</div>
+
+                                        {% with receipt=image.blockchain_record %}
+                                        <div class="mt-2">
+                                            <strong>Blockchain receipt:</strong>
+                                            {% if receipt %}
+                                                {{ receipt.commit_status }}
+                                            {% else %}
+                                                No receipt
+                                            {% endif %}
+                                        </div>
+                                        {% if receipt.transaction_id %}
+                                        <div class="text-break">
+                                            <strong>Transaction:</strong>
+                                            {{ receipt.transaction_id }}
+                                        </div>
+                                        {% endif %}
+                                        {% endwith %}
+
+                                        <div class="mt-2">
+                                            <strong>Captured GPS:</strong>
+                                            {{ image.latitude }}, {{ image.longitude }}
+                                        </div>
+                                        <div>
+                                            <strong>Project GPS:</strong>
+                                            {{ report.project.latitude }},
+                                            {{ report.project.longitude }}
+                                        </div>
+                                        <div>
+                                            <strong>Distance:</strong>
+                                            {{ image.geofence_distance|default:"Not calculated" }}
+                                            meters
+                                        </div>
+                                        <div>
+                                            <strong>Captured:</strong>
+                                            {{ image.captured_at|date:"M d, Y — g:i A" }}
+                                        </div>
+                                    </div>
+                                </details>
+                            </div>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="col-12">
+                        <div class="alert alert-warning mb-0">
+                            No mobile inspection images have been submitted for this report.
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
     </div>
 
-    <div class="card-body-custom">
-        <img
-            src="{{ image.image_file.url }}"
-            alt="Inspection evidence"
-            class="img-fluid rounded mb-3"
-            style="max-height: 450px;"
-        >
+    <!-- Right: administrator review -->
+    <div class="col-xl-4">
+        <div class="dash-card mb-3">
+            <div class="card-header-custom">
+                <h6>Verification Checklist</h6>
+            </div>
+            <div class="card-body-custom">
+                <p class="mb-2">
+                    <strong>Images:</strong> {{ report.images.count }} attached
+                </p>
 
-        <p><strong>SHA-256:</strong> {{ image.sha256_hash }}</p>
-        <p><strong>pHash:</strong> {{ image.perceptual_hash }}</p>
+                {% if approval_blockers %}
+                    <div class="alert alert-warning mb-0">
+                        <strong>Not ready for approval</strong>
+                        <ul class="mb-0 mt-2">
+                            {% for blocker in approval_blockers %}
+                            <li>{{ blocker }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                {% else %}
+                    <div class="alert alert-success mb-0">
+                        Image evidence, hashes, and geofence checks are ready.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
 
-        {% with receipt=image.blockchain_record %}
-        <p>
-            <strong>Blockchain receipt:</strong>
-            <span class="badge {% if receipt.commit_status == 'Committed' %}bg-success{% elif receipt.commit_status == 'Failed' %}bg-danger{% else %}bg-warning text-dark{% endif %}">
-                {{ receipt.commit_status }}
-            </span>
-        </p>
-        {% if receipt.transaction_id %}
-        <p><strong>Transaction ID:</strong> {{ receipt.transaction_id }}</p>
-        {% endif %}
-        {% if receipt.block_number != None %}
-        <p><strong>Block number:</strong> {{ receipt.block_number }}</p>
-        {% endif %}
-        {% endwith %}
+        {% if report.status == 'Pending' %}
+        <div class="dash-card">
+            <div class="card-header-custom">
+                <h6>Administrator Decision</h6>
+            </div>
+            <div class="card-body-custom">
+                <form method="post"
+                      action="{% url 'verifications:review_report' report.pk %}">
+                    {% csrf_token %}
 
-        <p>
-            <strong>Captured location:</strong>
-            {{ image.latitude }}, {{ image.longitude }}
-        </p>
+                    <label for="review-notes" class="form-label">
+                        Review notes
+                    </label>
+                    <textarea id="review-notes"
+                              name="review_notes"
+                              class="form-control mb-3"
+                              rows="3"
+                              placeholder="Required when rejecting the report"></textarea>
 
-        <p>
-            <strong>Project location:</strong>
-            {{ report.project.latitude }}, {{ report.project.longitude }}
-        </p>
+                    <div class="d-flex gap-2">
+                        <button type="submit"
+                                name="decision"
+                                value="Approved"
+                                class="btn btn-success"
+                                {% if approval_blockers %}disabled{% endif %}>
+                            <i class="bi bi-check-circle me-1"></i>Approve
+                        </button>
 
-        <p>
-            <strong>Distance:</strong>
-            {{ image.geofence_distance|default:"Not calculated" }} meters
-        </p>
-
-        <p>
-            <strong>Captured:</strong>
-            {{ image.captured_at|date:"M d, Y — g:i A" }}
-        </p>
-    </div>
-</div>
-{% empty %}
-<div class="alert alert-warning">
-    No inspection image is attached to this report.
-</div>
-{% endfor %}
-
-{% if report.status == 'Pending' %}
-<div class="dash-card mb-4">
-    <div class="card-header-custom">
-        <h6>Upload Inspection Image</h6>
-    </div>
-
-    <div class="card-body-custom">
-        {% if approval_blockers %}
-        <div class="alert alert-warning">
-            <strong>This report is not ready for approval:</strong>
-            <ul class="mb-0 mt-2">
-                {% for blocker in approval_blockers %}
-                <li>{{ blocker }}</li>
-                {% endfor %}
-            </ul>
+                        <button type="submit"
+                                name="decision"
+                                value="Rejected"
+                                class="btn btn-danger">
+                            <i class="bi bi-x-circle me-1"></i>Reject
+                        </button>
+                    </div>
+                </form>
+            </div>
         </div>
         {% else %}
-        <div class="alert alert-success">
-            The image evidence, hashes, and geofence checks are ready for review.
+        <div class="alert alert-info">
+            Reviewed by
+            {% if report.reviewed_by %}
+                {{ report.reviewed_by.get_full_name|default:report.reviewed_by.username }}
+            {% else %}
+                an administrator
+            {% endif %}
+            on {{ report.reviewed_at|date:"M d, Y — g:i A" }}.
+
+            {% if report.review_notes %}
+            <div class="mt-2">
+                <strong>Notes:</strong> {{ report.review_notes }}
+            </div>
+            {% endif %}
         </div>
         {% endif %}
-
-        <form
-            method="post"
-            enctype="multipart/form-data"
-            action="{% url 'verifications:upload_image' report.pk %}"
-        >
-            {% csrf_token %}
-
-            <div class="row g-3">
-                <div class="col-12">
-                    <label class="form-label">Image</label>
-                    {{ image_form.image_file }}
-                </div>
-                <div class="col-md-6">
-                    <label class="form-label">Latitude</label>
-                    {{ image_form.latitude }}
-                </div>
-                <div class="col-md-6">
-                    <label class="form-label">Longitude</label>
-                    {{ image_form.longitude }}
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label">Altitude</label>
-                    {{ image_form.altitude }}
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label">GPS accuracy</label>
-                    {{ image_form.gps_accuracy }}
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label">Captured at</label>
-                    {{ image_form.captured_at }}
-                </div>
-            </div>
-
-            <button type="submit" class="btn btn-primary mt-3">
-                <i class="bi bi-cloud-arrow-up me-1"></i>
-                Upload and Verify
-            </button>
-        </form>
     </div>
 </div>
-
-<div class="dash-card">
-    <div class="card-header-custom">
-        <h6>Administrator Decision</h6>
-    </div>
-
-    <div class="card-body-custom">
-        <form
-            method="post"
-            action="{% url 'verifications:review_report' report.pk %}"
-        >
-            {% csrf_token %}
-
-            <div class="mb-3">
-                <label class="form-label">Review notes</label>
-
-                <textarea
-                    name="review_notes"
-                    class="form-control"
-                    rows="3"
-                    placeholder="Required when rejecting the report"
-                ></textarea>
-            </div>
-
-            <button
-                type="submit"
-                name="decision"
-                value="Approved"
-                class="btn btn-success"
-                {% if approval_blockers %}disabled{% endif %}
-            >
-                <i class="bi bi-check-circle me-1"></i>
-                Approve
-            </button>
-
-            <button
-                type="submit"
-                name="decision"
-                value="Rejected"
-                class="btn btn-danger"
-            >
-                <i class="bi bi-x-circle me-1"></i>
-                Reject
-            </button>
-        </form>
-    </div>
-</div>
-{% else %}
-<div class="alert alert-info">
-    Reviewed by
-    {{ report.reviewed_by.get_full_name|default:report.reviewed_by.username }}
-    on {{ report.reviewed_at|date:"M d, Y — g:i A" }}.
-
-    {% if report.review_notes %}
-        <br>
-        <strong>Notes:</strong> {{ report.review_notes }}
-    {% endif %}
-</div>
-{% endif %}
 {% endblock %}

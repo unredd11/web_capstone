@@ -61,11 +61,6 @@ urlpatterns = [
         name='report_detail',
     ),
     path(
-        '<int:pk>/images/upload/',
-        views.upload_inspection_image,
-        name='upload_image',
-    ),
-    path(
         '<int:pk>/review/',
         views.review_report,
         name='review_report',

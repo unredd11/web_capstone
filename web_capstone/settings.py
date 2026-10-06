@@ -32,6 +32,8 @@ if not SECRET_KEY:
             'DJANGO_SECRET_KEY must be set when DJANGO_DEBUG=False.'
         )
 
+GOOGLE_MAPS_BROWSER_KEY = os.environ.get('GOOGLE_MAPS_BROWSER_KEY', '')
+
 ALLOWED_HOSTS = [
     host.strip()
     for host in os.environ.get(

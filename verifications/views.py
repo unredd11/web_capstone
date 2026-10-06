@@ -378,7 +378,6 @@ def report_detail(request, pk):
         'verifications/report_detail.html',
         {
             'report': report,
-            'image_form': InspectionImageForm(),
             'approval_blockers': approval_blockers,
             'active_page': 'pending_reports',
         },
