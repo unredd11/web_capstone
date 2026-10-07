@@ -118,7 +118,10 @@
                     <i class="bi bi-clock-history me-2 text-primary"></i>
                     Recent System and Audit Activity
                 </h6>
-                <span>Latest {{ recent_activity|length }} events</span>
+                <a href="{% url 'verifications:audit_log_list' %}"
+                   class="small text-decoration-none">
+                    View all
+                </a>
             </div>
 
             <div class="card-body-custom">
