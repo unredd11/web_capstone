@@ -97,6 +97,6 @@ def overview(request):
             'project', 'inspector__user'
         )[:5],
         'map_projects': map_projects,
-        'recent_activity': AuditLog.objects.select_related('user')[:8],
+        'recent_activity': AuditLog.objects.select_related('user')[:4],
     }
     return render(request, 'dashboard/Overview.html', context)

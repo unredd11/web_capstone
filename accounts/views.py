@@ -1,3 +1,5 @@
+import json
+
 from django.shortcuts import get_object_or_404, render, redirect
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
@@ -6,6 +8,8 @@ from django.contrib.auth.models import User
 from django.db import transaction
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
 
 from verifications.audit import record_audit_event
 
@@ -227,3 +231,55 @@ def edit_inspector(request, pk):
 def inspector_list(request):
     inspectors = Inspector.objects.select_related('user').all()
     return render(request, 'accounts/inspector_list.html', {'inspectors': inspectors, 'active_page': 'inspector_list'})
+
+@csrf_exempt
+@require_POST
+def mobile_api_login(request):
+    """
+    Stateless endpoint strictly for the React Native mobile app to authenticate field inspectors.
+    """
+    try:
+        data = json.loads(request.body)
+        username = data.get('username', '').strip()
+        password = data.get('password', '')
+
+        user = authenticate(request, username=username, password=password)
+
+        if user is not None:
+            try:
+                inspector_profile = Inspector.objects.get(user=user)
+
+                if inspector_profile.is_active:
+                    record_audit_event(
+                        request=request,
+                        user=user,
+                        action_type='mobile_app_login',
+                        target_entity='Inspector',
+                        target_id=inspector_profile.pk,
+                    )
+
+                    return JsonResponse({
+                        'status': 'success',
+                        'inspector_id': inspector_profile.pk,
+                        'name': user.get_full_name() or user.username,
+                        'employee_id': inspector_profile.employee_id,
+                    }, status=200)
+                else:
+                    return JsonResponse({
+                        'status': 'error',
+                        'message': 'This Inspector account has been deactivated.'
+                    }, status=403)
+
+            except Inspector.DoesNotExist:
+                return JsonResponse({
+                    'status': 'error',
+                    'message': 'This user is not registered as a Field Inspector.'
+                }, status=403)
+        else:
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Invalid credentials.'
+            }, status=401)
+
+    except json.JSONDecodeError:
+        return JsonResponse({'status': 'error', 'message': 'Invalid payload format.'}, status=400)

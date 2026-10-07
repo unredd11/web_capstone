@@ -33,6 +33,7 @@ def project_detail(request, pk):
         VerificationReport.objects
         .filter(project=project)
         .select_related('inspector__user')
+        .prefetch_related('images')
         .annotate(
             image_count=Count('images'),
             first_captured_at=Min('images__captured_at'),

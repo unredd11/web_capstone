@@ -83,6 +83,28 @@ class InspectionImage(models.Model):
         ordering = ['-captured_at']
 
 
+class OffChainImageStorage(models.Model):
+    image_id = models.AutoField(primary_key=True)
+    project = models.ForeignKey('projects.Project', on_delete=models.DO_NOTHING, db_column='project_id')
+    inspector = models.ForeignKey('accounts.Inspector', on_delete=models.DO_NOTHING, db_column='inspector_id')
+    sha256_hash = models.CharField(max_length=64)
+    perceptual_hash = models.CharField(max_length=64)
+    storage_uri = models.CharField(max_length=255)
+    file_size = models.IntegerField()
+    mime_type = models.CharField(max_length=100)
+    latitude = models.DecimalField(max_digits=10, decimal_places=7)
+    longitude = models.DecimalField(max_digits=10, decimal_places=7)
+    altitude = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
+    gps_accuracy = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
+    geofence_status = models.CharField(max_length=20)
+    captured_at = models.DateTimeField()
+
+    class Meta:
+        managed = False
+        db_table = 'off_chain_image_storage'
+        ordering = ['-captured_at']
+
+
 class BlockchainRecord(models.Model):
     COMMIT_STATUS_CHOICES = [
         ('Pending', 'Pending'),

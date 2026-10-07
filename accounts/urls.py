@@ -10,4 +10,5 @@ urlpatterns = [
     path('inspectors/', views.inspector_list, name='inspector_list'),
     path('inspectors/<int:pk>/toggle-status/', views.toggle_inspector_status, name='toggle_inspector_status',),
     path('inspectors/<int:pk>/edit/', views.edit_inspector,name='edit_inspector',),
+    path('api/mobile-login/', views.mobile_api_login, name='mobile_api_login'),
 ]

@@ -65,4 +65,9 @@ urlpatterns = [
         views.review_report,
         name='review_report',
     ),
+    path(
+        'verify/<int:image_id>/',
+         views.verify_blockchain_record,
+          name='verify_blockchain'
+    ),
 ]

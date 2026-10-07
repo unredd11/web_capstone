@@ -747,3 +747,123 @@ a {
         height: 280px;
     }
 }
+
+/* Project details inspection history */
+.project-progress {
+    height: 10px;
+    background: #e5e9ef;
+    border-radius: 999px;
+}
+
+.project-progress .progress-bar,
+.report-progress .progress-bar {
+    border-radius: 999px;
+}
+
+.photo-requirement-message {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 14px 20px 12px;
+    padding: 12px 14px;
+    color: #0866e5;
+    background: #e9f4ff;
+    border-radius: 8px;
+    font-size: 14px;
+}
+
+.photo-requirement-message i { font-size: 18px; }
+.inspection-history-table { min-width: 1400px; }
+.report-progress { min-width: 150px; }
+.report-progress .progress {
+    height: 9px;
+    background: #e5e9ef;
+    border-radius: 999px;
+}
+
+.description-column {
+    min-width: 240px;
+    max-width: 320px;
+}
+
+.description-text,
+.description-short,
+.description-full {
+    overflow-wrap: anywhere;
+    line-height: 1.5;
+}
+
+.description-details summary {
+    cursor: pointer;
+    list-style: none;
+}
+
+.description-details summary::-webkit-details-marker { display: none; }
+.description-full { margin-top: 8px; }
+.description-action {
+    display: block;
+    margin-top: 5px;
+    color: #1769ff;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.description-details .show-less { display: none; }
+.description-details[open] .description-short,
+.description-details[open] .show-more { display: none; }
+.description-details[open] .show-less { display: block; }
+
+.photos-column { min-width: 300px; }
+.photo-completion {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    width: fit-content;
+    margin-bottom: 10px;
+    padding: 6px 10px;
+    border-radius: 7px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.photo-completion-complete {
+    color: #188038;
+    background: #dcf7e4;
+}
+
+.photo-completion-incomplete {
+    color: #9a6700;
+    background: #fff4ce;
+}
+
+.site-photo-list { display: flex; gap: 10px; }
+.site-photo-item { width: 82px; text-align: center; }
+.site-photo-link { position: relative; display: block; }
+.site-photo-thumbnail {
+    width: 82px;
+    height: 56px;
+    object-fit: cover;
+    border: 1px solid #dce2ea;
+    border-radius: 8px;
+}
+
+.site-photo-item small {
+    display: block;
+    margin-top: 4px;
+    color: #475467;
+}
+
+.photo-check {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    display: grid;
+    width: 21px;
+    height: 21px;
+    place-items: center;
+    color: #fff;
+    background: #16a34a;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    font-size: 13px;
+}
