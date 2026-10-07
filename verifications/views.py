@@ -1,15 +1,17 @@
 import csv
+import os
+
+import requests
 
 from django.contrib import messages
 from django.contrib.auth.decorators import user_passes_test
-from django.http import HttpResponse, request
+from django.http import HttpResponse, JsonResponse
 from django.db import transaction
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.core.paginator import Paginator
 from django.utils.dateparse import parse_date
-
 from accounts.models import Inspector
 
 from projects.models import Project
@@ -19,6 +21,7 @@ from .forms import InspectionImageForm, ReportReviewForm
 from .models import (
     AuditLog,
     BlockchainRecord,
+    InspectionImage,
     VerificationReport,
 )
 
@@ -594,3 +597,61 @@ def review_report(request, pk):
 
     messages.success(request, f'Report #{report.pk} was {report.status.lower()}.')
     return redirect('verifications:report_detail', pk=report.pk)
+
+@user_passes_test(is_admin_user, login_url='accounts:login')
+def verify_blockchain_record(request, image_id):
+    try:
+        db_record = InspectionImage.objects.get(id=image_id)
+
+        node_base_url = os.environ.get(
+            'BLOCKCHAIN_API_URL',
+            'http://localhost:5000',
+        ).rstrip('/')
+        response = requests.get(
+            f'{node_base_url}/api/verify/{image_id}',
+            timeout=5,
+        )
+
+        if response.status_code == 200:
+            ledger_data = response.json()
+            ledger_hash = ledger_data.get('sha256_hash')
+            if not ledger_hash:
+                return JsonResponse(
+                    {
+                        'status': 'error',
+                        'message': 'The blockchain response did not include a SHA-256 hash.',
+                    },
+                    status=502,
+                )
+
+            return JsonResponse({
+                'status': 'success',
+                'is_authentic': db_record.sha256_hash == ledger_hash,
+                'database_hash': db_record.sha256_hash,
+                'ledger_hash': ledger_hash,
+            })
+
+        return JsonResponse(
+            {
+                'status': 'error',
+                'message': 'Record not found on blockchain.',
+            },
+            status=404,
+        )
+
+    except InspectionImage.DoesNotExist:
+        return JsonResponse(
+            {
+                'status': 'error',
+                'message': 'Image ID not found in database.',
+            },
+            status=404,
+        )
+    except (requests.exceptions.RequestException, ValueError):
+        return JsonResponse(
+            {
+                'status': 'error',
+                'message': 'Failed to connect to the blockchain service.',
+            },
+            status=502,
+        )

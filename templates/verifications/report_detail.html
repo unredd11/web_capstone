@@ -124,6 +124,22 @@
                                         {% endif %}
                                         {% endwith %}
 
+                                        <div class="mt-3 p-2 border rounded bg-light">
+                                            <strong class="d-block mb-2">Cryptographic Ledger Audit</strong>
+                                            <button
+                                                type="button"
+                                                class="btn btn-primary btn-sm"
+                                                onclick="verifyImage(
+                                                    '{{ image.id }}',
+                                                    '{% url 'verifications:verify_blockchain' image.id %}'
+                                                )"
+                                            >
+                                                <i class="bi bi-link-45deg"></i>
+                                                Verify Authenticity
+                                            </button>
+                                            <div id="verification-result-{{ image.id }}" class="mt-2"></div>
+                                        </div>
+
                                         <div class="mt-2">
                                             <strong>Captured GPS:</strong>
                                             {{ image.latitude }}, {{ image.longitude }}
@@ -244,4 +260,52 @@
         {% endif %}
     </div>
 </div>
+<script>
+function verifyImage(imageId, verificationUrl) {
+    const result = document.getElementById(`verification-result-${imageId}`);
+    result.innerHTML = `
+        <div class="text-primary">
+            <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+            Contacting Hyperledger Fabric nodes...
+        </div>
+    `;
+
+    fetch(verificationUrl)
+        .then(response => response.json())
+        .then(data => {
+            if (data.status !== 'success') {
+                result.innerHTML = `
+                    <div class="alert alert-warning mb-0">
+                        <strong>Audit failed:</strong> ${data.message}
+                    </div>
+                `;
+                return;
+            }
+
+            if (data.is_authentic) {
+                result.innerHTML = `
+                    <div class="alert alert-success mb-0">
+                        <strong><i class="bi bi-shield-check"></i> Verified authentic</strong><br>
+                        <small>The database hash matches the immutable ledger record.</small>
+                    </div>
+                `;
+                return;
+            }
+
+            result.innerHTML = `
+                <div class="alert alert-danger mb-0">
+                    <strong><i class="bi bi-shield-exclamation"></i> Tampering detected</strong><br>
+                    <small>The database and ledger hashes do not match.</small>
+                </div>
+            `;
+        })
+        .catch(() => {
+            result.innerHTML = `
+                <div class="alert alert-danger mb-0">
+                    The verification engine could not be reached.
+                </div>
+            `;
+        });
+}
+</script>
 {% endblock %}
