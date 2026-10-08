@@ -5,17 +5,58 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.conf import settings
 from django.core.paginator import Paginator
 from django.db.models import Count, Min
+from django.views.decorators.http import require_POST
 from verifications.models import VerificationReport
+from pathlib import Path
 
 from verifications.audit import record_audit_event
 
 from .forms import ProjectForm, AssignInspectorForm
-from .models import Project, ProjectAssignment
+from .models import Project, ProjectAssignment, ProjectDocument
 
 def is_admin_user(user):
     return user.is_authenticated and (
         user.is_staff or user.is_superuser
     )
+
+def save_project_documents(project, documents, user):
+    for document in documents:
+        ProjectDocument.objects.create(
+            project=project,
+            title=Path(document.name).stem[:200],
+            document_file=document,
+            uploaded_by=user,
+        )
+
+
+@user_passes_test(is_admin_user, login_url='accounts:login')
+@require_POST
+@transaction.atomic
+def project_document_delete(request, pk, document_pk):
+    document = get_object_or_404(
+        ProjectDocument,
+        pk=document_pk,
+        project_id=pk,
+    )
+    project_id = document.project_id
+    document_id = document.pk
+    document_title = document.title
+    storage = document.document_file.storage
+    stored_name = document.document_file.name
+
+    record_audit_event(
+        request=request,
+        action_type='delete_project_document',
+        target_entity='ProjectDocument',
+        target_id=document_id,
+    )
+    document.delete()
+
+    if stored_name:
+        transaction.on_commit(lambda: storage.delete(stored_name))
+
+    messages.success(request, f'“{document_title}” was removed.')
+    return redirect('projects:project_edit', pk=project_id)
 
 @user_passes_test(is_admin_user, login_url='accounts:login')
 def project_list(request):
@@ -25,7 +66,9 @@ def project_list(request):
 @user_passes_test(is_admin_user, login_url='accounts:login')
 def project_detail(request, pk):
     project = get_object_or_404(
-        Project.objects.select_related('assigned_inspector__user'),
+        Project.objects
+        .select_related('assigned_inspector__user')
+        .prefetch_related('documents'),
         pk=pk,
     )
 
@@ -56,15 +99,23 @@ def project_detail(request, pk):
 @transaction.atomic
 def project_add(request):
     if request.method == 'POST':
-        form = ProjectForm(request.POST)
+        form = ProjectForm(request.POST, request.FILES)
         if form.is_valid():
             project = form.save()
+
+            save_project_documents(
+                project=project,
+                documents=form.cleaned_data.get('documents', []),
+                user=request.user,
+            )
+
             record_audit_event(
                 request=request,
                 action_type='create_project',
                 target_entity='Project',
                 target_id=project.pk,
             )
+
             if project.assigned_inspector:
                 _, assignment_created = ProjectAssignment.objects.get_or_create(
                     project=project,
@@ -93,9 +144,19 @@ def project_add(request):
 def project_edit(request, pk):
     project = get_object_or_404(Project, pk=pk)
     if request.method == 'POST':
-        form = ProjectForm(request.POST, instance=project)
+        form = ProjectForm(
+            request.POST,
+            request.FILES,
+            instance=project,
+        )
         if form.is_valid():
             project = form.save()
+
+            save_project_documents(
+                project=project,
+                documents=form.cleaned_data.get('documents', []),
+                user=request.user,
+            )
             record_audit_event(
                 request=request,
                 action_type='update_project',

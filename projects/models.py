@@ -1,5 +1,7 @@
 from django.db import models
 from accounts.models import Inspector
+from django.conf import settings
+from django.core.validators import FileExtensionValidator
 
 class Project(models.Model):
     STATUS_CHOICES = [
@@ -35,6 +37,35 @@ class Project(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+
+def project_document_upload_path(instance, filename):
+    return f'project_documents/project_{instance.project_id}/{filename}'
+
+class ProjectDocument(models.Model):
+    project = models.ForeignKey(
+        Project,
+        on_delete=models.CASCADE,
+        related_name='documents',
+    )
+    title = models.CharField(max_length=200)
+    document_file = models.FileField(
+        upload_to=project_document_upload_path,
+        validators=[FileExtensionValidator(['pdf'])],
+    )
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='uploaded_project_documents',
+    )
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-uploaded_at']
+
+    def __str__(self):
+        return f'{self.title} — {self.project}'
 
 class ProjectAssignment(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='assignments')

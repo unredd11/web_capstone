@@ -2,7 +2,38 @@ from django import forms
 from .models import Project, ProjectAssignment
 from accounts.models import Inspector
 
+class MultipleFileInput(forms.ClearableFileInput):
+    allow_multiple_selected = True
+
+
+class MultipleFileField(forms.FileField):
+    def clean(self, data, initial=None):
+        single_file_clean = super().clean
+
+        if isinstance(data, (list, tuple)):
+            return [
+                single_file_clean(file, initial)
+                for file in data
+            ]
+
+        if data:
+            return [single_file_clean(data, initial)]
+
+        return []
+
 class ProjectForm(forms.ModelForm):
+    documents = MultipleFileField(
+        required=False,
+        label='Supporting PDF Documents',
+        widget=MultipleFileInput(
+            attrs={
+                'class': 'form-control',
+                'accept': 'application/pdf,.pdf',
+            }
+        ),
+        help_text='Upload permits, POW, contracts, endorsements, or other PDF documents.',
+    )
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['assigned_inspector'].queryset = Inspector.objects.filter(is_active=True)
@@ -92,6 +123,33 @@ class ProjectForm(forms.ModelForm):
                 'assigned_inspector',
                 'The inspector must belong to the project district.',
             )
+
+        documents = cleaned_data.get('documents', [])
+
+        for document in documents:
+            if document.size > 10 * 1024 * 1024:
+                self.add_error(
+                    'documents',
+                    f'{document.name} exceeds the 10 MB limit.',
+                )
+                continue
+
+            if not document.name.lower().endswith('.pdf'):
+                self.add_error(
+                    'documents',
+                    f'{document.name} must be a PDF file.',
+                )
+                continue
+
+            # Check the actual PDF file signature.
+            file_header = document.read(5)
+            document.seek(0)
+
+            if file_header != b'%PDF-':
+                self.add_error(
+                    'documents',
+                    f'{document.name} does not appear to be a valid PDF.',
+                )
 
         return cleaned_data
 

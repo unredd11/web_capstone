@@ -13,7 +13,7 @@
 </head>
 <body>
 
-    <aside class="sidebar">
+    <aside class="sidebar" id="admin-sidebar" aria-label="Admin navigation">
         <div class="sidebar-header">
             <div class="sidebar-logo">
             <img src="{% static 'images/dpwh-logo.png' %}" alt="DPWH Logo">
@@ -22,6 +22,12 @@
                 <h5>DPWH </h5>
                 <small>Admin Dashboard</small>
             </div>
+            <button type="button"
+                    class="sidebar-close"
+                    id="sidebar-close"
+                    aria-label="Close navigation menu">
+                <i class="bi bi-x-lg"></i>
+            </button>
         </div>
 
         <div class="sidebar-section">Main Menu</div>
@@ -119,10 +125,23 @@
         </div>
     </aside>
 
+    <button type="button"
+            class="sidebar-overlay"
+            id="sidebar-overlay"
+            aria-label="Close navigation menu"></button>
+
     <div class="main-content">
 
         <nav class="top-navbar">
             <div class="navbar-left">
+                <button type="button"
+                        class="mobile-menu-button"
+                        id="mobile-menu-button"
+                        aria-controls="admin-sidebar"
+                        aria-expanded="false"
+                        aria-label="Open navigation menu">
+                    <i class="bi bi-list"></i>
+                </button>
                 <div class="page-title-area">
                     <div class="breadcrumb-label">{% block breadcrumb %}Overview{% endblock %}</div>
                     <h4>{% block page_title %}Dashboard{% endblock %}</h4>
@@ -179,6 +198,42 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+    (function () {
+        const body = document.body;
+        const openButton = document.getElementById('mobile-menu-button');
+        const closeButton = document.getElementById('sidebar-close');
+        const overlay = document.getElementById('sidebar-overlay');
+        const sidebar = document.getElementById('admin-sidebar');
+
+        function setSidebar(open) {
+            body.classList.toggle('sidebar-open', open);
+            openButton.setAttribute('aria-expanded', String(open));
+            openButton.setAttribute(
+                'aria-label',
+                open ? 'Close navigation menu' : 'Open navigation menu'
+            );
+        }
+
+        openButton.addEventListener('click', function () {
+            setSidebar(!body.classList.contains('sidebar-open'));
+        });
+        closeButton.addEventListener('click', function () { setSidebar(false); });
+        overlay.addEventListener('click', function () { setSidebar(false); });
+
+        sidebar.querySelectorAll('a').forEach(function (link) {
+            link.addEventListener('click', function () { setSidebar(false); });
+        });
+
+        document.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape') setSidebar(false);
+        });
+
+        window.addEventListener('resize', function () {
+            if (window.innerWidth >= 992) setSidebar(false);
+        });
+    })();
+    </script>
     {% block extra_js %}{% endblock %}
 </body>
 </html>
